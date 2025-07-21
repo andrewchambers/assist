@@ -1,5 +1,7 @@
 CC = gcc
 CFLAGS = -O1 -Ilib/tgc -Ilib/cJSON
+LDFLAGS =
+LDLIBS = -lpthread -lcurl
 SCDOC = scdoc
 PANDOC = pandoc
 
@@ -11,7 +13,7 @@ WEB_PAGES = www/assist.1.html www/assist-model-config.5.html
 all: assist
 
 assist: $(OBJS) $(LIB_OBJS)
-	$(CC) -o $@ $^ -lpthread -lcurl
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 man: $(MAN_PAGES)
 
