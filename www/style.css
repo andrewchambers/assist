@@ -1,0 +1,369 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --term-bg: #000000;
+    --term-fg: #aaaaaa;
+    --term-bright: #ffffff;
+    --term-green: #00ff00;
+    --term-dim: #666666;
+    --term-comment: #00ff00;
+    --term-string: #ff8800;
+    --term-prompt: #00ff00;
+    --term-cursor: #00ff00;
+}
+
+body {
+    font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, "Courier New", monospace;
+    line-height: 1.2;
+    color: var(--term-fg);
+    background-color: var(--term-bg);
+    padding: 1rem;
+}
+
+/* Terminal container */
+.terminal {
+    max-width: 80ch;
+    margin: 0 auto;
+}
+
+/* Pre sections */
+pre {
+    font-family: inherit;
+    white-space: pre;
+    overflow-x: auto;
+    margin: 0;
+    line-height: 1.4;
+}
+
+pre.section {
+    margin-top: 2rem;
+}
+
+pre.header {
+    color: var(--term-bright);
+}
+
+pre.footer {
+    margin-top: 3rem;
+    padding-bottom: 2rem;
+}
+
+/* Terminal elements */
+.prompt {
+    color: var(--term-prompt);
+    font-weight: bold;
+}
+
+.output {
+    color: var(--term-fg);
+}
+
+.comment {
+    color: var(--term-comment);
+}
+
+.string {
+    color: var(--term-string);
+}
+
+.dim {
+    color: var(--term-dim);
+}
+
+.bright {
+    color: var(--term-bright);
+}
+
+.cursor {
+    background-color: var(--term-cursor);
+    color: var(--term-bg);
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Bold text in man pages */
+strong {
+    color: var(--term-bright);
+    font-weight: bold;
+}
+
+/* Italic/emphasis */
+em {
+    font-style: normal;
+    text-decoration: underline;
+}
+
+/* Links styled as terminal output */
+a {
+    color: var(--term-bright);
+    text-decoration: underline;
+}
+
+a:hover {
+    background-color: var(--term-bright);
+    color: var(--term-bg);
+    text-decoration: none;
+}
+
+/* Responsive for terminal */
+@media (max-width: 768px) {
+    body {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .terminal {
+        max-width: 100%;
+    }
+    
+    pre {
+        font-size: 0.75rem;
+    }
+}
+
+/* For rendered markdown/man pages - keeping terminal theme */
+.markdown-body {
+    max-width: 80ch;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, "Courier New", monospace;
+    color: var(--term-fg);
+    background-color: var(--term-bg);
+}
+
+.markdown-body h1 {
+    color: var(--term-bright);
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+}
+
+.markdown-body h2 {
+    color: var(--term-bright);
+    font-size: 1.25rem;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-weight: bold;
+}
+
+.markdown-body h3 {
+    color: var(--term-bright);
+    font-size: 1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: bold;
+}
+
+.markdown-body pre {
+    background-color: #111;
+    padding: 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    border-left: 3px solid var(--term-dim);
+}
+
+.markdown-body code {
+    font-family: inherit;
+    color: var(--term-string);
+    background-color: #111;
+    padding: 0.1rem 0.3rem;
+}
+
+.markdown-body pre code {
+    padding: 0;
+    background-color: transparent;
+}
+
+.markdown-body p {
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.markdown-body ul, .markdown-body ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+}
+
+.markdown-body li {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-body blockquote {
+    border-left: 3px solid var(--term-dim);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: var(--term-dim);
+    font-style: italic;
+}
+
+.markdown-body a {
+    color: var(--term-bright);
+    text-decoration: underline;
+}
+
+.markdown-body a:hover {
+    background-color: var(--term-bright);
+    color: var(--term-bg);
+    text-decoration: none;
+}
+
+/* Back to home link */
+nav {
+    padding: 1rem;
+    border-bottom: 1px solid var(--term-dim);
+    margin-bottom: 2rem;
+}
+
+nav a {
+    color: var(--term-bright);
+    text-decoration: none;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+/* Mandoc-generated man page styles */
+.head, .foot {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    color: var(--term-dim);
+}
+
+.head td, .foot td {
+    padding: 0.5rem 0;
+}
+
+.head-ltitle, .foot-date {
+    text-align: left;
+}
+
+.head-vol {
+    text-align: center;
+}
+
+.head-rtitle, .foot-os {
+    text-align: right;
+}
+
+.manual-text {
+    max-width: 80ch;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+/* Man page sections */
+.Sh {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.Sh h1 {
+    color: var(--term-bright);
+    font-size: 1.25rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.Ss {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.Ss h2 {
+    color: var(--term-bright);
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+/* Man page paragraphs and indentation */
+.Pp {
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.Bd-indent {
+    margin-left: 2rem;
+    margin-bottom: 1rem;
+}
+
+.Bl-tag {
+    margin-left: 2rem;
+    margin-bottom: 1rem;
+}
+
+.Bl-tag dt {
+    float: left;
+    margin-right: 1rem;
+    clear: left;
+}
+
+.Bl-tag dd {
+    margin-left: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.Bl-bullet {
+    list-style-type: disc;
+    margin-left: 2rem;
+    margin-bottom: 1rem;
+}
+
+.Bl-bullet li {
+    margin-bottom: 0.5rem;
+}
+
+/* Inline formatting */
+.Sh b, .Pp b, .Bd-indent b {
+    color: var(--term-bright);
+    font-weight: bold;
+}
+
+.Sh i, .Pp i, .Bd-indent i {
+    font-style: normal;
+    text-decoration: underline;
+    color: var(--term-string);
+}
+
+/* Code blocks in man pages */
+.Bd-indent pre {
+    background-color: #111;
+    padding: 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    border-left: 3px solid var(--term-dim);
+    white-space: pre;
+    line-height: 1.4;
+}
+
+/* Links in man pages */
+.manual-text a {
+    color: var(--term-bright);
+    text-decoration: underline;
+}
+
+.manual-text a:hover {
+    background-color: var(--term-bright);
+    color: var(--term-bg);
+    text-decoration: none;
+}
+
+/* Fix line breaking in code blocks */
+.manual-text pre {
+    white-space: pre;
+    font-family: inherit;
+    line-height: 1.4;
+}

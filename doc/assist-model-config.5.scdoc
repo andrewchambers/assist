@@ -1,0 +1,188 @@
+assist-model-config(5)
+
+# NAME
+
+assist-model-config - AI model configuration file format for assist(1)
+
+# SYNOPSIS
+
+~/.config/assist/models.json
+/etc/assist/models.json
+
+# DESCRIPTION
+
+The *assist* command uses JSON configuration files to define available AI models and their parameters. It supports multiple model providers through OpenAI-compatible APIs, including OpenAI, Anthropic (via proxy), Google, local models via Ollama, and many others through services like OpenRouter.
+
+Configuration files are searched in the following order:
+
+1. User configuration: *~/.config/assist/models.json*
+2. System configuration: */etc/assist/models.json*
+3. Built-in defaults (if no configuration files exist)
+
+The first model defined in the configuration file becomes the default model when no *--model* option is specified.
+
+# FILE FORMAT
+
+The configuration file must contain a JSON object where each key is a model name and the value is a model definition object.
+
+## Model Definition
+
+Each model definition must include:
+
+*type* (string, required)
+	The model type. Currently only "openai" is supported, which works with any OpenAI-compatible API including OpenAI, Ollama, OpenRouter, and many other providers.
+
+*endpoint* (string, required for openai type)
+	The API endpoint URL for the model.
+
+*model* (string, optional)
+	The specific model identifier to use in API requests.
+
+*api_key* (string, optional)
+	The API key for authentication. Can be specified directly or via *api_key_env*.
+
+*api_key_env* (string, optional)
+	Environment variable name containing the API key. Takes precedence over *api_key*.
+
+*max_context_bytes* (number, optional)
+	Maximum context size in bytes (approximate). Default: 512000 (~128K tokens).
+
+*params* (object, optional)
+	Additional parameters to send with API requests. Must be a valid JSON object.
+
+## Parameter Details
+
+## OpenAI Type Parameters
+
+For models of type "openai", the following parameters in the *params* object are commonly used:
+
+*stream* (boolean)
+	Enable streaming responses. Default: true.
+
+*reasoning* (object)
+	For models that support reasoning (e.g., o3, gemini):
+	- *effort*: "low", "medium", or "high"
+
+*temperature* (number)
+	Sampling temperature (0.0 to 2.0).
+
+*max_tokens* (number)
+	Maximum tokens to generate.
+
+# EXAMPLES
+
+Basic configuration with two models:
+
+```
+{
+  "gpt4": {
+    "type": "openai",
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "model": "gpt-4-turbo",
+    "api_key_env": "OPENAI_API_KEY",
+    "max_context_bytes": 512000,
+    "params": {
+      "stream": true,
+      "temperature": 0.7
+    }
+  },
+  "local-llama": {
+    "type": "openai",
+    "endpoint": "http://localhost:8080/v1/chat/completions",
+    "model": "llama-3.1-8b",
+    "max_context_bytes": 32768,
+    "params": {
+      "stream": false
+    }
+  }
+}
+```
+
+Configuration using OpenRouter with reasoning models:
+
+```
+{
+  "o3": {
+    "type": "openai", 
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "model": "openai/o3",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "max_context_bytes": 512000,
+    "params": {
+      "reasoning": {
+        "effort": "high"
+      },
+      "stream": true
+    }
+  },
+  "gemini": {
+    "type": "openai",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions", 
+    "model": "google/gemini-2.5-pro",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "max_context_bytes": 2097152,
+    "params": {
+      "reasoning": {
+        "effort": "high"
+      },
+      "stream": true
+    }
+  }
+}
+```
+
+Configuration for Ollama (local model server):
+
+```
+{
+  "ollama-llama": {
+    "type": "openai",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "model": "llama3.1:latest",
+    "max_context_bytes": 32768,
+    "params": {
+      "stream": true,
+      "temperature": 0.7
+    }
+  },
+  "ollama-mistral": {
+    "type": "openai",
+    "endpoint": "http://localhost:11434/v1/chat/completions",
+    "model": "mistral:latest",
+    "max_context_bytes": 32768,
+    "params": {
+      "stream": true
+    }
+  }
+}
+```
+
+# DEFAULT MODELS
+
+If no configuration file is found, *assist* uses built-in models based on available API keys:
+
+- With *OPENROUTER_API_KEY*: A selection of the latest models from OpenAI, Google, X.AI, and other providers
+- With *OPENAI_API_KEY* (when OPENROUTER_API_KEY is not set): A selection of the latest OpenAI models
+
+The first model in the list becomes the default when no --model option is specified.
+
+# ENVIRONMENT VARIABLES
+
+API keys can be specified via environment variables using the *api_key_env* field. Common variables:
+
+*OPENAI_API_KEY*
+	For OpenAI API access
+
+*OPENROUTER_API_KEY*
+	For OpenRouter service access
+
+*ANTHROPIC_API_KEY*
+	For Anthropic API access
+
+# SEE ALSO
+
+*assist*(1)
+
+# AUTHORS
+
+Maintained by the assist project contributors.
