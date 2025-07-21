@@ -1,9 +1,9 @@
 # assist
 
+**Website**: [https://andrewchambers.github.io/assist/](https://andrewchambers.github.io/assist/)
+
 `assist` is a command line tool that uses ai to assist the user at
 any task you can do from the command line on unix systems.
-
-**Website**: [https://andrewchambers.github.io/assist/](https://andrewchambers.github.io/assist/)
 
 It is designed around a few core ideas: 
 
@@ -58,6 +58,7 @@ the assistant to specific directories and alsto to disable internet access.
 
 - The software is written in C to keep it resource light and portable.
 - We use a tiny conservative garbage collector to prevent many of C's pitfalls.
+- This project is developed with AI assistance and undergoes periodic human review and cleanup.
 
 ### Agent loop
 
