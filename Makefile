@@ -5,7 +5,7 @@ LDLIBS = -lpthread -lcurl
 SCDOC = scdoc
 PANDOC = pandoc
 
-OBJS = main.o util.o model.o assistant.o shell.o
+OBJS = main.o util.o model.o assist.o shell.o
 LIB_OBJS = lib/tgc/tgc.o lib/cJSON/cJSON.o
 MAN_PAGES = doc/assist.1 doc/assist-model-config.5
 WEB_PAGES = www/assist.1.html www/assist-model-config.5.html

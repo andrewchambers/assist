@@ -13,8 +13,13 @@
 #include <pthread.h>
 #include <tgc.h>
 #include <dirent.h>
+#include <glob.h>
+#include <limits.h>
 
 tgc_t gc;
+
+// Global buffer to store the executable path
+char g_executable_path[PATH_MAX] = {0};
 
 void die(const char *fmt, ...) {
     va_list args;
@@ -76,6 +81,59 @@ char *gc_asprintf(const char *fmt, ...) {
     va_end(args);
     
     return str;
+}
+
+void self_exec_path_init(const char *argv0) {
+    if (!argv0) {
+        die("argv0 is required!\n");
+    }
+   
+    // Otherwise, resolve argv[0] to absolute path
+    if (argv0[0] == '/') {
+        // Already absolute
+        strncpy(g_executable_path, argv0, PATH_MAX - 1);
+        g_executable_path[PATH_MAX - 1] = '\0';
+    } else if (strchr(argv0, '/')) {
+        // Relative path with directory component
+        char cwd[PATH_MAX];
+        if (getcwd(cwd, sizeof(cwd))) {
+            snprintf(g_executable_path, PATH_MAX, "%s/%s", cwd, argv0);
+        }
+    } else {
+        // Just a command name, search PATH
+        const char *path_env = getenv("PATH");
+        if (!path_env) {
+            // Fallback to default PATH if not set
+            path_env = "/usr/local/bin:/usr/bin:/bin";
+        }
+        
+        // Make a copy of PATH since strtok modifies the string
+        char *path_copy = gc_strdup(path_env);
+        
+        char *dir = strtok(path_copy, ":");
+        bool found = false;
+        
+        while (dir != NULL) {
+            char candidate[PATH_MAX];
+            snprintf(candidate, PATH_MAX, "%s/%s", dir, argv0);
+            
+            // Check if file exists and is executable
+            if (access(candidate, X_OK) == 0) {
+                strncpy(g_executable_path, candidate, PATH_MAX - 1);
+                g_executable_path[PATH_MAX - 1] = '\0';
+                found = true;
+                break;
+            }
+            
+            dir = strtok(NULL, ":");
+        }
+        
+        if (!found) {
+            // If not found in PATH, just store the command name
+            strncpy(g_executable_path, argv0, PATH_MAX - 1);
+            g_executable_path[PATH_MAX - 1] = '\0';
+        }
+    }
 }
 
 void gc_string_builder_init(gc_string_builder_t *sb, size_t initial_capacity) {
@@ -527,4 +585,118 @@ int remove_directory(const char *path) {
     }
     
     return ret;
+}
+
+int expand_globs(const char *words, expand_globs_t *result) {
+    if (!words || !result) {
+        return -1;
+    }
+    
+    // Initialize result
+    result->we_wordc = 0;
+    result->we_wordv = NULL;
+    
+    // Work directly with the input string using indices to avoid GC rooting issues
+    size_t len = strlen(words);
+    char *buffer = gc_malloc(len + 1);
+    strcpy(buffer, words);
+    size_t pos = 0;
+    
+    // Dynamic array for words
+    size_t capacity = 16;
+    char **wordv = gc_malloc(capacity * sizeof(char*));
+    size_t wordc = 0;
+    
+    while (pos < len && buffer[pos]) {
+        // Skip leading whitespace
+        while (pos < len && buffer[pos] && (buffer[pos] == ' ' || buffer[pos] == '\t' || buffer[pos] == '\n')) {
+            pos++;
+        }
+        
+        if (pos >= len || !buffer[pos]) break;
+        
+        size_t word_start = pos;
+        char quote_char = 0;
+        
+        // Handle quoted strings
+        if (buffer[pos] == '"' || buffer[pos] == '\'') {
+            quote_char = buffer[pos];
+            pos++;
+            word_start = pos;
+            
+            // Find matching quote
+            while (pos < len && buffer[pos] && buffer[pos] != quote_char) {
+                if (buffer[pos] == '\\' && pos + 1 < len && buffer[pos + 1]) {
+                    // Skip escaped character
+                    pos += 2;
+                } else {
+                    pos++;
+                }
+            }
+            
+            if (pos < len && buffer[pos] == quote_char) {
+                buffer[pos] = '\0';
+                pos++;
+            }
+            
+            // Add word (no glob expansion for quoted strings)
+            if (wordc >= capacity) {
+                capacity *= 2;
+                wordv = gc_realloc(wordv, capacity * sizeof(char*));
+            }
+            wordv[wordc++] = gc_strdup(&buffer[word_start]);
+        } else {
+            // Find end of unquoted word
+            while (pos < len && buffer[pos] && buffer[pos] != ' ' && buffer[pos] != '\t' && buffer[pos] != '\n') {
+                pos++;
+            }
+            
+            // Temporarily null-terminate the word
+            char saved = (pos < len) ? buffer[pos] : '\0';
+            if (pos < len) {
+                buffer[pos] = '\0';
+            }
+            
+            // Always use glob to handle tilde expansion and patterns
+            // GLOB_NOCHECK ensures non-matching patterns are returned as-is
+            glob_t glob_result;
+            int glob_ret = glob(&buffer[word_start], GLOB_NOCHECK | GLOB_TILDE, NULL, &glob_result);
+            
+            if (glob_ret == 0) {
+                // Add all expanded paths
+                for (size_t i = 0; i < glob_result.gl_pathc; i++) {
+                    if (wordc >= capacity) {
+                        capacity *= 2;
+                        wordv = gc_realloc(wordv, capacity * sizeof(char*));
+                    }
+                    wordv[wordc++] = gc_strdup(glob_result.gl_pathv[i]);
+                }
+                globfree(&glob_result);
+            } else {
+                // On error, just add the word as-is
+                if (wordc >= capacity) {
+                    capacity *= 2;
+                    wordv = gc_realloc(wordv, capacity * sizeof(char*));
+                }
+                wordv[wordc++] = gc_strdup(&buffer[word_start]);
+            }
+            
+            // Restore the character
+            if (pos < len) {
+                buffer[pos] = saved;
+            }
+        }
+    }
+    
+    // Add terminating NULL
+    if (wordc >= capacity) {
+        capacity++;
+        wordv = gc_realloc(wordv, capacity * sizeof(char*));
+    }
+    wordv[wordc] = NULL;
+    
+    result->we_wordc = wordc;
+    result->we_wordv = wordv;
+    
+    return 0;
 }

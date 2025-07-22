@@ -6,10 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <wordexp.h>
 #include <sys/stat.h>
 #include "util.h"
-#include "assistant.h"
+#include "assist.h"
 #include "model.h"
 
 extern tgc_t gc;
@@ -19,6 +18,8 @@ extern tgc_t gc;
 
 // Global flag for signal handling
 static volatile sig_atomic_t interrupt_received = 0;
+
+// Global to store argv[0] for executable path resolution
 
 // Signal handler
 static void signal_handler(int sig) {
@@ -206,9 +207,6 @@ static void print_usage(const char *prog_name) {
     fprintf(stderr, "                             Default: %s\n", DEFAULT_FOCUS_FILES);
     fprintf(stderr, "  --help                     Show this help message\n");
     fprintf(stderr, "\n");
-    fprintf(stderr, "Environment variables:\n");
-    fprintf(stderr, "  OPENAI_API_KEY            API key for OpenAI-compatible services\n");
-    fprintf(stderr, "\n");
 }
 
 int assist_main(int argc, char *argv[]) {
@@ -218,8 +216,7 @@ int assist_main(int argc, char *argv[]) {
     int max_iterations = 50;
     char *model = NULL;
     char *reasoning = NULL;
-    char **focus_files = NULL;
-    int focus_count = 0;
+    char *focus_arg = NULL;  // Store the --focus argument
     
     // Parse command line arguments
     int i = 1;
@@ -253,29 +250,7 @@ int assist_main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --focus requires an argument\n");
                 return 1;
             }
-            // Use wordexp to expand the focus argument
-            wordexp_t exp_result;
-            int ret = wordexp(argv[i + 1], &exp_result, 0);
-            if (ret != 0) {
-                fprintf(stderr, "Error: Failed to expand focus argument: %s\n", argv[i + 1]);
-                return 1;
-            }
-            
-            // Allocate array for expanded files
-            focus_files = gc_malloc(exp_result.we_wordc * sizeof(char*));
-            focus_count = 0;
-            
-            // Copy expanded files and check existence
-            for (size_t j = 0; j < exp_result.we_wordc; j++) {
-                struct stat st;
-                if (stat(exp_result.we_wordv[j], &st) != 0) {
-                    // Silently skip non-existent files
-                    continue;
-                }
-                focus_files[focus_count++] = gc_strdup(exp_result.we_wordv[j]);
-            }
-            
-            wordfree(&exp_result);
+            focus_arg = argv[i + 1];
             i += 2;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
@@ -317,27 +292,31 @@ int assist_main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Process default focus files if none were specified
-    if (focus_count == 0) {
-        wordexp_t exp_result;
-        int ret = wordexp(DEFAULT_FOCUS_FILES, &exp_result, 0);
-        if (ret == 0) {
-            // Allocate array for expanded files
-            focus_files = gc_malloc(exp_result.we_wordc * sizeof(char*));
-            focus_count = 0;
-            
-            // Copy expanded files that exist
-            for (size_t j = 0; j < exp_result.we_wordc; j++) {
-                struct stat st;
-                if (stat(exp_result.we_wordv[j], &st) != 0) {
-                    // Silently skip non-existent files
-                    continue;
-                }
-                focus_files[focus_count++] = gc_strdup(exp_result.we_wordv[j]);
+    // Process focus files
+    char **focus_files = NULL;
+    int focus_count = 0;
+    
+    // Use provided focus argument or default
+    const char *focus_pattern = focus_arg ? focus_arg : DEFAULT_FOCUS_FILES;
+    
+    expand_globs_t exp_result;
+    int ret = expand_globs(focus_pattern, &exp_result);
+    if (ret == 0) {
+        // Allocate array for expanded files
+        focus_files = gc_malloc(exp_result.we_wordc * sizeof(char*));
+        focus_count = 0;
+        
+        // Copy expanded files that exist
+        for (size_t j = 0; j < exp_result.we_wordc; j++) {
+            struct stat st;
+            if (stat(exp_result.we_wordv[j], &st) != 0) {
+                // Silently skip non-existent files
+                continue;
             }
-            
-            wordfree(&exp_result);
+            focus_files[focus_count++] = gc_strdup(exp_result.we_wordv[j]);
         }
+        
+        // No need to free - memory managed by gc
     }
     
     // Set up signal handling
@@ -389,6 +368,9 @@ int main(int argc, char *argv[]) {
     hooks.malloc_fn = gc_malloc;
     hooks.free_fn = gc_free;
     cJSON_InitHooks(&hooks);
+    
+    // Initialize self_exec_path with argv[0]
+    self_exec_path_init(argv[0]);
 
         // Check if called as an agent command
     char *cmd = basename(argv[0]);

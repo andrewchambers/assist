@@ -1,4 +1,4 @@
-#include "assistant.h"
+#include "assist.h"
 #include "util.h"
 #include "model.h"
 #include <stdlib.h>

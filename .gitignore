@@ -1,0 +1,29 @@
+# Object files
+*.o
+
+# Executables
+assist
+
+# Static libraries
+*.a
+
+# Architecture-specific directories
+.aarch64/
+.x86_64/
+.arm64/
+
+# Cosmopolitan build artifacts
+cosmo-bin/
+*.aarch64.elf
+*.com.dbg
+*.com
+
+# Downloaded dependencies
+support/cosmo-curl/test_curl
+support/cosmo-curl/curl/
+support/cosmo-curl/mbedtls/
+
+# Generated documentation
+doc/*.1
+doc/*.5
+www/*.html

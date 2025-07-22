@@ -1,0 +1,18 @@
+--- curl/lib/curl_setup.h.orig	2025-07-22 10:28:55.602311651 +1200
++++ curl/lib/curl_setup.h	2025-07-22 10:29:07.567407798 +1200
+@@ -595,6 +595,7 @@
+ #define FMT_OFF_T CURL_FORMAT_CURL_OFF_T
+ #define FMT_OFF_TU CURL_FORMAT_CURL_OFF_TU
+ 
++#ifndef TIME_T_MAX
+ #if (SIZEOF_TIME_T == 4)
+ #  ifdef HAVE_TIME_T_UNSIGNED
+ #  define TIME_T_MAX UINT_MAX
+@@ -612,6 +613,7 @@
+ #  define TIME_T_MIN (-TIME_T_MAX - 1)
+ #  endif
+ #endif
++#endif
+ 
+ #ifndef SIZE_T_MAX
+ /* some limits.h headers have this defined, some do not */

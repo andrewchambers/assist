@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <limits.h>
 
 /**
  * Print error message to stderr and exit with status 1.
@@ -97,5 +98,44 @@ void stop_spinner(void);
  * Returns 0 on success, -1 on error.
  */
 int remove_directory(const char *path);
+
+/**
+ * Glob expansion result structure.
+ * Uses our garbage collector for memory management.
+ */
+typedef struct {
+    size_t we_wordc;  // Number of words
+    char **we_wordv;  // Array of words (NULL-terminated)
+} expand_globs_t;
+
+/**
+ * Expand glob patterns and split words from input string.
+ * Supports:
+ * - Space-separated words
+ * - Single and double quoted strings (quotes are removed)
+ * - Glob patterns (*, ?, [...]) - patterns that don't match are returned as-is
+ * - Tilde expansion (~)
+ * 
+ * All unquoted words are processed through glob() with GLOB_NOCHECK flag,
+ * ensuring non-matching patterns are returned unchanged.
+ * 
+ * Returns 0 on success, -1 on error.
+ * No need to free result - memory is managed by garbage collector.
+ */
+int expand_globs(const char *words, expand_globs_t *result);
+
+/**
+ * Global buffer containing the executable path.
+ * Initialized by self_exec_path_init().
+ */
+extern char g_executable_path[PATH_MAX];
+
+/**
+ * Initialize the executable path with argv[0] from main.
+ * This should be called early in main() to store the executable path.
+ * The function will attempt to resolve argv[0] to an absolute path,
+ * combining it with the current working directory if necessary.
+ */
+void self_exec_path_init(const char *argv0);
 
 #endif /* UTIL_H */

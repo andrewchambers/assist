@@ -1,4 +1,4 @@
-#include "assistant.h"
+#include "assist.h"
 #include "util.h"
 #include <stdlib.h>
 #include <string.h>
@@ -9,16 +9,6 @@
 #include <cJSON.h>
 #include <errno.h>
 
-// Helper to get the current executable path
-static char* get_exe_path() {
-    char* path = gc_malloc(PATH_MAX);
-    ssize_t len = readlink("/proc/self/exe", path, PATH_MAX - 1);
-    if (len < 0) {
-        return NULL;
-    }
-    path[len] = '\0';
-    return path;
-}
 
 // Write the current state to a JSON file
 static int write_state_json(const char *path, AssistantCommandState *cmd_state) {
@@ -151,8 +141,7 @@ char* execute_script(const char *script, AssistantState *state, AssistantCommand
     temp_dir = gc_strdup(temp_dir);
     
     // Get current executable path
-    char *exe_path = get_exe_path();
-    if (!exe_path) {
+    if (!g_executable_path[0]) {
         remove_directory(temp_dir);
         return gc_strdup("Error: Failed to get executable path");
     }
@@ -171,7 +160,7 @@ char* execute_script(const char *script, AssistantState *state, AssistantCommand
     
     for (int i = 0; i < 5; i++) {
         char *link_path = gc_asprintf("%s/bin/%s", temp_dir, commands[i]);
-        if (symlink(exe_path, link_path) != 0) {
+        if (symlink(g_executable_path, link_path) != 0) {
             remove_directory(temp_dir);
             return gc_asprintf("Error: Failed to create symlink for %s", commands[i]);
         }
