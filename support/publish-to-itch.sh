@@ -102,5 +102,9 @@ butler push "cosmo-bin/minicoder-darwin-amd64" "${ITCH_USER}/${ITCH_GAME}:macos-
 echo "Pushing macOS ARM64 binary..."
 butler push "cosmo-bin/minicoder-darwin-arm64" "${ITCH_USER}/${ITCH_GAME}:macos-arm64" --userversion "$VERSION"
 
+# Man pages
+echo "Pushing man pages..."
+butler push "cosmo-bin/man" "${ITCH_USER}/${ITCH_GAME}:man-pages" --userversion "$VERSION"
+
 echo "All binaries published successfully!"
 echo "View your game at: https://${ITCH_USER}.itch.io/${ITCH_GAME}"

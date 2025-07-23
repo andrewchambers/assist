@@ -56,3 +56,15 @@ assimilate -e -a -o cosmo-bin/minicoder-darwin-arm64 cosmo-bin/minicoder.com
 chmod +x cosmo-bin/minicoder-*
 
 echo "Platform-specific binaries generated in: $PROJECT_ROOT/cosmo-bin/"
+
+# Step 4: Build man pages
+echo "Building man pages..."
+cd "$PROJECT_ROOT"
+make man
+
+# Copy man pages to cosmo-bin
+mkdir -p cosmo-bin/man
+cp doc/minicoder.1 cosmo-bin/man/
+cp doc/minicoder-model-config.5 cosmo-bin/man/
+
+echo "Man pages generated in: $PROJECT_ROOT/cosmo-bin/man/"

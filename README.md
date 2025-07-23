@@ -40,6 +40,22 @@ Join our Discord community to get help, share ideas, and discuss minicoder devel
 
 **Discord**: [Join the minicoder Discord](https://discord.gg/cZk3yxBxRS)
 
+## Quick Start
+
+```bash
+# Set up your API key (OpenRouter or OpenAI)
+export OPENROUTER_API_KEY="your-key"  # or OPENAI_API_KEY
+
+# Basic usage
+minicoder "Fix the bug in main.c"
+
+# Choose a specific model
+minicoder --model deepseek "Optimize this function"
+
+# Focus on specific files
+minicoder --focus 'src/*.js tests/*.js' "Add unit tests"
+```
+
 ## User manuals
 
 - [minicoder(1)](doc/minicoder.1.scdoc) - Main manual page
@@ -55,7 +71,24 @@ Sandboxing is a work in progress.
 We aim to provide a simplified interface to limit
 the assistant to specific directories and alsto to disable internet access. 
 
-## Building 
+## Building
+
+### Prerequisites
+
+- C compiler (gcc, clang, etc.)
+- libcurl with development headers
+- Standard POSIX build tools (make)
+
+### Build from source
+
+```bash
+git clone https://github.com/andrewchambers/minicoder.git
+cd minicoder
+make
+sudo make install PREFIX=/usr/local
+```
+
+The build process is straightforward - just run `make`. The Makefile will compile minicoder with your system's libcurl. 
 
 ## Design notes
 
