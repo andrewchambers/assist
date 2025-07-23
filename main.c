@@ -19,7 +19,6 @@ extern tgc_t gc;
 #endif
 
 // Default files to focus on if none specified
-#define DEFAULT_FOCUS_FILES "README.* [Rr]eadme.*"
 
 // Global flag for signal handling
 static volatile sig_atomic_t interrupt_received = 0;
@@ -220,7 +219,6 @@ static void print_usage(const char *prog_name, model_config_t *model_config) {
     }
     
     fprintf(stderr, "  --focus FILES              Files or globs to focus on initially (space-separated)\n");
-    fprintf(stderr, "                             Default: %s\n", DEFAULT_FOCUS_FILES);
     fprintf(stderr, "  --help                     Show this help message\n");
     fprintf(stderr, "  --version                  Show version information\n");
     fprintf(stderr, "\n");
@@ -240,7 +238,6 @@ int assist_main(int argc, char *argv[]) {
     bool debug = false;
     int max_iterations = 50;
     char *model = NULL;
-    char *reasoning = "enabled";  // Always show reasoning
     char *focus_arg = NULL;  // Store the --focus argument
     
     // Parse command line arguments
@@ -323,27 +320,27 @@ int assist_main(int argc, char *argv[]) {
     char **focus_files = NULL;
     int focus_count = 0;
     
-    // Use provided focus argument or default
-    const char *focus_pattern = focus_arg ? focus_arg : DEFAULT_FOCUS_FILES;
-    
-    expand_globs_t exp_result;
-    int ret = expand_globs(focus_pattern, &exp_result);
-    if (ret == 0) {
-        // Allocate array for expanded files
-        focus_files = gc_malloc(exp_result.we_wordc * sizeof(char*));
-        focus_count = 0;
-        
-        // Copy expanded files that exist
-        for (size_t j = 0; j < exp_result.we_wordc; j++) {
-            struct stat st;
-            if (stat(exp_result.we_wordv[j], &st) != 0) {
-                // Silently skip non-existent files
-                continue;
+    // Only use focus if explicitly provided
+    if (focus_arg) {
+        expand_globs_t exp_result;
+        int ret = expand_globs(focus_arg, &exp_result);
+        if (ret == 0) {
+            // Allocate array for expanded files
+            focus_files = gc_malloc(exp_result.we_wordc * sizeof(char*));
+            focus_count = 0;
+            
+            // Copy expanded files that exist
+            for (size_t j = 0; j < exp_result.we_wordc; j++) {
+                struct stat st;
+                if (stat(exp_result.we_wordv[j], &st) != 0) {
+                    // Silently skip non-existent files
+                    continue;
+                }
+                focus_files[focus_count++] = gc_strdup(exp_result.we_wordv[j]);
             }
-            focus_files[focus_count++] = gc_strdup(exp_result.we_wordv[j]);
+            
+            // No need to free - memory managed by gc
         }
-        
-        // No need to free - memory managed by gc
     }
     
     // Set up signal handling
@@ -365,7 +362,6 @@ int assist_main(int argc, char *argv[]) {
         .debug = debug,
         .max_iterations = max_iterations,
         .model = model,
-        .reasoning = reasoning,
         .initial_focus = focus_files,
         .initial_focus_count = focus_count,
         .output = stdout,

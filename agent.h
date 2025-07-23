@@ -31,7 +31,6 @@ typedef struct {
     bool debug;
     int max_iterations;
     char *model;
-    char *reasoning;
     char **initial_focus;
     int initial_focus_count;
     FILE *output;
