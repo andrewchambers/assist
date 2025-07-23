@@ -200,14 +200,25 @@ int agent_command_main(const char *cmd, int argc, char *argv[]) {
     return 0;
 }
 
-static void print_usage(const char *prog_name) {
+static void print_usage(const char *prog_name, model_config_t *model_config) {
     fprintf(stderr, "Usage: %s [options] <request>\n", prog_name);
     fprintf(stderr, "\n");
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  --debug                    Show debug output including prompts\n");
     fprintf(stderr, "  --max-iterations NUM       Maximum number of iterations (default: 50)\n");
-    fprintf(stderr, "  --model MODEL              Model to use (default: first available model)\n");
-    fprintf(stderr, "  --show-reasoning           Show reasoning output for models that support it\n");
+    
+    // Show default model if available
+    if (model_config && model_config->count > 0) {
+        model_t *default_model = get_default_model(model_config);
+        if (default_model) {
+            fprintf(stderr, "  --model MODEL              Model to use (default: %s)\n", default_model->name);
+        } else {
+            fprintf(stderr, "  --model MODEL              Model to use\n");
+        }
+    } else {
+        fprintf(stderr, "  --model MODEL              Model to use\n");
+    }
+    
     fprintf(stderr, "  --focus FILES              Files or globs to focus on initially (space-separated)\n");
     fprintf(stderr, "                             Default: %s\n", DEFAULT_FOCUS_FILES);
     fprintf(stderr, "  --help                     Show this help message\n");
@@ -217,11 +228,19 @@ static void print_usage(const char *prog_name) {
 
 int assist_main(int argc, char *argv[]) {
 
+    // Initialize model configuration early to show in usage
+    char *error = NULL;
+    model_config_t *model_config = init_models(&error);
+    if (!model_config) {
+        fprintf(stderr, "Error initializing models: %s\n", error ? error : "Unknown error");
+        return 1;
+    }
+
     // Default values
     bool debug = false;
     int max_iterations = 50;
     char *model = NULL;
-    char *reasoning = NULL;
+    char *reasoning = "enabled";  // Always show reasoning
     char *focus_arg = NULL;  // Store the --focus argument
     
     // Parse command line arguments
@@ -248,9 +267,6 @@ int assist_main(int argc, char *argv[]) {
             }
             model = argv[i + 1];
             i += 2;
-        } else if (strcmp(argv[i], "--show-reasoning") == 0) {
-            reasoning = "enabled";
-            i++;
         } else if (strcmp(argv[i], "--focus") == 0) {
             if (i + 1 >= argc) {
                 fprintf(stderr, "Error: --focus requires an argument\n");
@@ -259,14 +275,30 @@ int assist_main(int argc, char *argv[]) {
             focus_arg = argv[i + 1];
             i += 2;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            print_usage(argv[0]);
+            print_usage(argv[0], model_config);
             return 0;
         } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0) {
             printf("minicoder %s\n", MINICODER_VERSION);
             return 0;
         } else {
             fprintf(stderr, "Error: Unknown option: %s\n", argv[i]);
-            print_usage(argv[0]);
+            print_usage(argv[0], model_config);
+            return 1;
+        }
+    }
+    
+    // Check if we have any models configured
+    if (model_config->count == 0) {
+        fprintf(stderr, "Error: No models configured. Please check your config file or environment variables.\n");
+        return 1;
+    }
+    
+    // Validate model if specified
+    if (model) {
+        model_t *m = get_model(model_config, model);
+        if (!m) {
+            fprintf(stderr, "Error: Unknown model: %s\n", model);
+            list_models(model_config, stderr);
             return 1;
         }
     }
@@ -274,7 +306,7 @@ int assist_main(int argc, char *argv[]) {
     // Check for user request
     if (i >= argc) {
         fprintf(stderr, "Error: No request provided\n");
-        print_usage(argv[0]);
+        print_usage(argv[0], model_config);
         return 1;
     }
     
@@ -286,20 +318,6 @@ int assist_main(int argc, char *argv[]) {
         gc_string_builder_append_str(&sb, argv[j]);
     }
     char *user_request = gc_string_builder_finalize(&sb);
-    
-    // Initialize model configuration
-    char *error = NULL;
-    model_config_t *model_config = init_models(&error);
-    if (!model_config) {
-        fprintf(stderr, "Error initializing models: %s\n", error ? error : "Unknown error");
-        return 1;
-    }
-    
-    // Check if we have any models configured
-    if (model_config->count == 0) {
-        fprintf(stderr, "Error: No models configured. Please check your config file or environment variables.\n");
-        return 1;
-    }
     
     // Process focus files
     char **focus_files = NULL;
@@ -341,8 +359,8 @@ int assist_main(int argc, char *argv[]) {
         fprintf(stderr, "Warning: Failed to set up SIGTERM handler\n");
     }
     
-    // Create assistant arguments
-    AssistantArgs args = {
+    // Create agent arguments
+    AgentArgs args = {
         .user_request = user_request,
         .debug = debug,
         .max_iterations = max_iterations,
@@ -356,12 +374,12 @@ int assist_main(int argc, char *argv[]) {
         .should_cancel = cancellation_callback
     };
     
-    // Run the assistant
-    AssistantResult result = run_assistant(&args);
+    // Run the agent
+    AgentResult result = run_agent(&args);
     
-    // Map assistant result to exit code
+    // Map agent result to exit code
     switch (result) {
-        case ASSISTANT_RESULT_SUCCESS:
+        case AGENT_RESULT_SUCCESS:
             return 0;
         default:
             return 1;

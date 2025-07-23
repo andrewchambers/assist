@@ -211,7 +211,7 @@ typedef struct {
 // Arguments for prompt building
 typedef struct {
     const char *user_request;
-    const AssistantState *state;
+    const AgentState *state;
     const char *focused_files;
     const char *history;
 } PromptBuildArgs;
@@ -321,9 +321,9 @@ static void output_callback(const char *chunk, size_t chunk_len, model_chunk_typ
     }
 }
 
-AssistantResult run_assistant(AssistantArgs *args) {
-    AssistantState state = {0};
-    AssistantCommandState cmd_state = {0};
+AgentResult run_agent(AgentArgs *args) {
+    AgentState state = {0};
+    AgentCommandState cmd_state = {0};
     
     // Initialize working directory
     if (args->working_dir) {
@@ -360,7 +360,7 @@ AssistantResult run_assistant(AssistantArgs *args) {
     
     if (!model) {
         fprintf(args->output, "Error: Unknown model: %s\n", args->model ? args->model : "(default)");
-        return ASSISTANT_RESULT_ERROR;
+        return AGENT_RESULT_ERROR;
     }
     
     // Generate a dummy prompt once to get exact system prompt size
@@ -377,7 +377,7 @@ AssistantResult run_assistant(AssistantArgs *args) {
         // Check for cancellation
         if (args->should_cancel && args->should_cancel(NULL)) {
             fprintf(args->output, "\n=== Cancelled ===\n");
-            return ASSISTANT_RESULT_CANCELLED;
+            return AGENT_RESULT_CANCELLED;
         }
         
         state.iteration++;
@@ -469,7 +469,7 @@ AssistantResult run_assistant(AssistantArgs *args) {
         
         if (!response) {
             fprintf(args->output, "Error: Failed to get model response: %s\n", error ? error : "Unknown error");
-            return ASSISTANT_RESULT_ERROR;
+            return AGENT_RESULT_ERROR;
         }
         
         // Add newline after streamed output
@@ -513,16 +513,16 @@ AssistantResult run_assistant(AssistantArgs *args) {
         if (state.done_message && strlen(state.done_message) > 0) {
             fprintf(args->output, "%s\n", state.done_message);
         }
-        return ASSISTANT_RESULT_SUCCESS;
+        return AGENT_RESULT_SUCCESS;
     } else if (state.aborted) {
         fprintf(args->output, "\n=== Abort ===\n\n");
         if (state.abort_message && strlen(state.abort_message) > 0) {
             fprintf(args->output, "%s\n", state.abort_message);
         }
-        return ASSISTANT_RESULT_ABORTED;
+        return AGENT_RESULT_ABORTED;
     } else {
         fprintf(args->output, "\n=== Iteration Limit Exceeded ===\n\n[Stopped after %d iterations]\n", args->max_iterations);
-        return ASSISTANT_RESULT_MAX_ITERATIONS;
+        return AGENT_RESULT_MAX_ITERATIONS;
     }
     
 }

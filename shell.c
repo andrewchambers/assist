@@ -11,7 +11,7 @@
 
 
 // Write the current state to a JSON file
-static int write_state_json(const char *path, AssistantCommandState *cmd_state) {
+static int write_state_json(const char *path, AgentCommandState *cmd_state) {
     cJSON *root = cJSON_CreateObject();
     if (!root) {
         return -1;
@@ -71,7 +71,7 @@ static int write_state_json(const char *path, AssistantCommandState *cmd_state) 
 }
 
 // Read state back from JSON file and update the state
-static void read_state_json(const char *path, AssistantState *state, AssistantCommandState *cmd_state) {
+static void read_state_json(const char *path, AgentState *state, AgentCommandState *cmd_state) {
     char *error = NULL;
     char *content = file_to_string(path, &error);
     if (!content) {
@@ -130,7 +130,7 @@ static void read_state_json(const char *path, AssistantState *state, AssistantCo
     }
 }
 
-char* execute_script(const char *script, AssistantState *state, AssistantCommandState *cmd_state) {
+char* execute_script(const char *script, AgentState *state, AgentCommandState *cmd_state) {
     // Create temporary directory
     char temp_template[] = "/tmp/minicoder-XXXXXX";
     char *temp_dir = mkdtemp(temp_template);

@@ -96,7 +96,7 @@ The build process is straightforward - just run `make`. The Makefile will compil
 
 - The software is written in C to keep it resource light and portable.
 - We use a tiny conservative garbage collector to prevent many of C's pitfalls.
-- This project is developed with AI assistance and undergoes periodic human review and cleanup.
+- This project is often developed with AI assistance.
 
 ### Agent loop
 
