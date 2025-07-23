@@ -7,6 +7,8 @@
 `minicoder` is a command line tool that uses ai to assist the user at
 any task you can do from the command line on unix systems.
 
+![minicoder demo](https://github.com/andrewchambers/minicoder/blob/artifacts/minicoder-demo.gif?raw=true)
+
 It is designed around a few core ideas: 
 
 - Follow good cli and unix design practices.
