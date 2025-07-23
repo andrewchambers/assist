@@ -128,7 +128,7 @@ int expand_globs(const char *words, expand_globs_t *result);
  * Global buffer containing the executable path.
  * Initialized by self_exec_path_init().
  */
-extern char g_executable_path[PATH_MAX];
+extern char g_executable_path[PATH_MAX * 2];
 
 /**
  * Initialize the executable path with argv[0] from main.

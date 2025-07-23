@@ -19,7 +19,7 @@
 tgc_t gc;
 
 // Global buffer to store the executable path
-char g_executable_path[PATH_MAX] = {0};
+char g_executable_path[PATH_MAX * 2] = {0};
 
 void die(const char *fmt, ...) {
     va_list args;
@@ -87,17 +87,35 @@ void self_exec_path_init(const char *argv0) {
     if (!argv0) {
         die("argv0 is required!\n");
     }
+    
+    // First try /proc/self/exe (Linux)
+    char proc_path[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", proc_path, sizeof(proc_path) - 1);
+    if (len > 0) {
+        proc_path[len] = '\0';
+        strncpy(g_executable_path, proc_path, PATH_MAX * 2 - 1);
+        g_executable_path[PATH_MAX * 2 - 1] = '\0';
+        return;
+    }
    
     // Otherwise, resolve argv[0] to absolute path
     if (argv0[0] == '/') {
         // Already absolute
-        strncpy(g_executable_path, argv0, PATH_MAX - 1);
-        g_executable_path[PATH_MAX - 1] = '\0';
+        strncpy(g_executable_path, argv0, PATH_MAX * 2 - 1);
+        g_executable_path[PATH_MAX * 2 - 1] = '\0';
     } else if (strchr(argv0, '/')) {
         // Relative path with directory component
         char cwd[PATH_MAX];
         if (getcwd(cwd, sizeof(cwd))) {
-            snprintf(g_executable_path, PATH_MAX, "%s/%s", cwd, argv0);
+            size_t cwd_len = strlen(cwd);
+            size_t argv0_len = strlen(argv0);
+            if (cwd_len + argv0_len + 1 < PATH_MAX * 2) {
+                snprintf(g_executable_path, PATH_MAX * 2, "%s/%s", cwd, argv0);
+            } else {
+                // Path would be too long, just use argv0 as-is
+                strncpy(g_executable_path, argv0, PATH_MAX - 1);
+                g_executable_path[PATH_MAX - 1] = '\0';
+            }
         }
     } else {
         // Just a command name, search PATH
@@ -119,8 +137,8 @@ void self_exec_path_init(const char *argv0) {
             
             // Check if file exists and is executable
             if (access(candidate, X_OK) == 0) {
-                strncpy(g_executable_path, candidate, PATH_MAX - 1);
-                g_executable_path[PATH_MAX - 1] = '\0';
+                strncpy(g_executable_path, candidate, PATH_MAX * 2 - 1);
+                g_executable_path[PATH_MAX * 2 - 1] = '\0';
                 found = true;
                 break;
             }
@@ -129,10 +147,13 @@ void self_exec_path_init(const char *argv0) {
         }
         
         if (!found) {
-            // If not found in PATH, just store the command name
-            strncpy(g_executable_path, argv0, PATH_MAX - 1);
-            g_executable_path[PATH_MAX - 1] = '\0';
+            die("Failed to find executable '%s' in PATH\n", argv0);
         }
+    }
+    
+    // Verify that we actually found a valid executable path
+    if (!g_executable_path[0]) {
+        die("Failed to determine executable path\n");
     }
 }
 
