@@ -40,6 +40,7 @@ pkgs.mkShell {
     mandoc
     pkg-config
     asciinema
+    asciinema-agg
   ];
 
   shellHook = ''
