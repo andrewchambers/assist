@@ -12,8 +12,8 @@ any task you can do from the command line on unix systems.
 It is designed around a few core ideas: 
 
 - Follow good cli and unix design practices.
-- Keep the interface with the AI models simple and general.
-- We bet that AI advances will improve the tool without complicated prompts/workflows.
+- Support as many AI models as possible with a universal and simple interface.
+- AI advances will keep improving the tool without complicating the tool itself.
 
 ## Examples
 
