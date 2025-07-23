@@ -12,7 +12,10 @@ echo "Building minicoder with Cosmopolitan libc"
 # Step 1: Build cosmo-curl
 echo "Building cosmo-curl..."
 cd "$PROJECT_ROOT/lib/cosmo-curl"
-make -j$(nproc) all 
+# Download dependencies if needed
+./download.sh
+# Build everything
+make all 
 
 # Step 2: Build minicoder with cosmocc
 echo "Building minicoder..."

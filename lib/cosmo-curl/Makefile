@@ -3,19 +3,9 @@ CC = cosmocc
 AR = cosmoar
 CFLAGS = -O2
 
-# Version information
-# To update checksums: download the file and run `sha256sum filename`
-MBEDTLS_VERSION = 3.6.4
+# Directory names (must match download.sh)
 MBEDTLS_DIR = mbedtls
-MBEDTLS_TAR = v$(MBEDTLS_VERSION).tar.gz
-MBEDTLS_URL = https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/$(MBEDTLS_TAR)
-MBEDTLS_SHA256 = a1e01f6094bb744ead8caaa92d7c7102b7137a813f509b49afaebc0b8e51899c
-
-CURL_VERSION = 8.15.0
 CURL_DIR = curl
-CURL_TAR = curl-$(CURL_VERSION).tar.gz
-CURL_URL = https://curl.se/download/$(CURL_TAR)
-CURL_SHA256 = d85cfc79dc505ff800cb1d321a320183035011fa08cb301356425d86be8fc53c
 
 # MbedTLS specific flags
 MBEDTLS_CFLAGS = $(CFLAGS) -Iinclude -I$(MBEDTLS_DIR)/include
@@ -346,36 +336,12 @@ TEST_PROG = test_curl
 # Default target - build both libraries and test program
 all: $(MBEDTLS_LIB) $(LIBCURL_LIB) $(TEST_PROG)
 
-# Download and extract mbedtls
-$(MBEDTLS_DIR):
-	@echo "Downloading mbedtls $(MBEDTLS_VERSION)..."
-	@curl -L $(MBEDTLS_URL) -o $(MBEDTLS_TAR)
-	@echo "Validating mbedtls checksum..."
-	@echo "$(MBEDTLS_SHA256)  $(MBEDTLS_TAR)" | sha256sum -c
-	@echo "Extracting mbedtls..."
-	@tar xzf $(MBEDTLS_TAR)
-	@mv mbedtls-$(MBEDTLS_VERSION) $(MBEDTLS_DIR)
-	@rm $(MBEDTLS_TAR)
-
-# Download and extract curl
-$(CURL_DIR):
-	@echo "Downloading curl $(CURL_VERSION)..."
-	@curl -L $(CURL_URL) -o $(CURL_TAR)
-	@echo "Validating curl checksum..."
-	@echo "$(CURL_SHA256)  $(CURL_TAR)" | sha256sum -c
-	@echo "Extracting curl..."
-	@tar xzf $(CURL_TAR)
-	@mv curl-$(CURL_VERSION) $(CURL_DIR)
-	@rm $(CURL_TAR)
-	@echo "Patching curl for cosmo compatibility..."
-	@patch -p0 < curl-setup.patch
-
 # Build mbedtls library
-$(MBEDTLS_LIB): $(MBEDTLS_DIR) $(MBEDTLS_OBJS)
+$(MBEDTLS_LIB): $(MBEDTLS_OBJS)
 	$(AR) rcs $@ $(MBEDTLS_OBJS)
 
 # Build libcurl library
-$(LIBCURL_LIB): $(CURL_DIR) $(LIBCURL_OBJS)
+$(LIBCURL_LIB): $(LIBCURL_OBJS)
 	$(AR) rcs $@ $(LIBCURL_OBJS)
 
 # Build test program
@@ -383,25 +349,25 @@ $(TEST_PROG): test_curl.c $(LIBCURL_LIB) $(MBEDTLS_LIB)
 	$(CC) $(CFLAGS) -I$(CURL_DIR)/include -o $@ $< $(LIBCURL_LIB) $(MBEDTLS_LIB)
 
 # Pattern rules for compiling C files
-$(MBEDTLS_DIR)/library/%.o: $(MBEDTLS_DIR)/library/%.c | $(MBEDTLS_DIR)
+$(MBEDTLS_DIR)/library/%.o: $(MBEDTLS_DIR)/library/%.c
 	$(CC) $(MBEDTLS_CFLAGS) -c $< -o $@
 
-$(CURL_DIR)/lib/%.o: $(CURL_DIR)/lib/%.c | $(CURL_DIR)
+$(CURL_DIR)/lib/%.o: $(CURL_DIR)/lib/%.c
 	$(CC) $(CURL_CFLAGS) -c $< -o $@
 
-$(CURL_DIR)/lib/curlx/%.o: $(CURL_DIR)/lib/curlx/%.c | $(CURL_DIR)
+$(CURL_DIR)/lib/curlx/%.o: $(CURL_DIR)/lib/curlx/%.c
 	$(CC) $(CURL_CFLAGS) -c $< -o $@
 
-$(CURL_DIR)/lib/vauth/%.o: $(CURL_DIR)/lib/vauth/%.c | $(CURL_DIR)
+$(CURL_DIR)/lib/vauth/%.o: $(CURL_DIR)/lib/vauth/%.c
 	$(CC) $(CURL_CFLAGS) -c $< -o $@
 
-$(CURL_DIR)/lib/vtls/%.o: $(CURL_DIR)/lib/vtls/%.c | $(CURL_DIR)
+$(CURL_DIR)/lib/vtls/%.o: $(CURL_DIR)/lib/vtls/%.c
 	$(CC) $(CURL_CFLAGS) -c $< -o $@
 
-$(CURL_DIR)/lib/vquic/%.o: $(CURL_DIR)/lib/vquic/%.c | $(CURL_DIR)
+$(CURL_DIR)/lib/vquic/%.o: $(CURL_DIR)/lib/vquic/%.c
 	$(CC) $(CURL_CFLAGS) -c $< -o $@
 
-$(CURL_DIR)/lib/vssh/%.o: $(CURL_DIR)/lib/vssh/%.c | $(CURL_DIR)
+$(CURL_DIR)/lib/vssh/%.o: $(CURL_DIR)/lib/vssh/%.c
 	$(CC) $(CURL_CFLAGS) -c $< -o $@
 
 # Individual targets
