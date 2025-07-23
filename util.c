@@ -21,6 +21,23 @@ tgc_t gc;
 // Global buffer to store the executable path
 char g_executable_path[PATH_MAX * 2] = {0};
 
+// Hidden debug flag: if MINICODER_DEBUG_GC is set, force a garbage collection
+// on every allocation/reallocation/free. This helps debug unrooted allocations 
+// by making them fail immediately rather than at some random later point.
+static void debug_gc_maybe_run(void) {
+    static int debug_gc_checked = 0;
+    static int debug_gc_enabled = 0;
+    
+    if (!debug_gc_checked) {
+        debug_gc_checked = 1;
+        debug_gc_enabled = (getenv("MINICODER_DEBUG_GC") != NULL);
+    }
+    
+    if (debug_gc_enabled) {
+        tgc_run(&gc);
+    }
+}
+
 void die(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -32,6 +49,8 @@ void die(const char *fmt, ...) {
 }
 
 void *gc_malloc(size_t size) {
+    debug_gc_maybe_run();
+    
     void *ptr = tgc_alloc(&gc, size);
     if (!ptr) {
         die("Memory allocation failed");
@@ -40,6 +59,8 @@ void *gc_malloc(size_t size) {
 }
 
 void *gc_realloc(void *ptr, size_t size) {
+    debug_gc_maybe_run();
+    
     void *new_ptr = tgc_realloc(&gc, ptr, size);
     if (!new_ptr && size > 0) {
         die("Memory reallocation failed");
@@ -49,6 +70,7 @@ void *gc_realloc(void *ptr, size_t size) {
 
 void gc_free(void *ptr) {
     if (ptr) {
+        debug_gc_maybe_run();
         tgc_free(&gc, ptr);
     }
 }

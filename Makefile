@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -O1 -Ilib/tgc -Ilib/cJSON
+CFLAGS = -O1 -g -Ilib/tgc -Ilib/cJSON
 LDFLAGS =
 LDLIBS = -lpthread -lcurl
 SCDOC = scdoc

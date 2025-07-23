@@ -449,7 +449,9 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
                 
                 // Check for SSE data line
                 if (strncmp(line, "data: ", 6) == 0) {
-                    const char *data = line + 6;
+
+                    // We must dup the string for gc root reasons.
+                    const char *data = gc_strdup(line + 6);
                     
                     // Check for [DONE] message
                     if (strcmp(data, "[DONE]") == 0) {

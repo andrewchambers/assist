@@ -42,6 +42,7 @@ pkgs.mkShell {
     asciinema
     asciinema-agg
     butler
+    valgrind
   ];
 
   shellHook = ''
