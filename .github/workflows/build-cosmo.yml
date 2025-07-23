@@ -1,0 +1,45 @@
+name: Build Cosmopolitan Binaries
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download cosmocc
+        run: |
+          COSMOCC_VERSION="4.0.2"
+          wget -q "https://github.com/jart/cosmopolitan/releases/download/${COSMOCC_VERSION}/cosmocc-${COSMOCC_VERSION}.zip"
+          unzip -q "cosmocc-${COSMOCC_VERSION}.zip"
+          echo "$PWD/cosmocc/bin" >> $GITHUB_PATH
+          
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git curl
+          
+      - name: Build with Cosmopolitan
+        run: |
+          ./support/build-with-cosmo.sh
+          
+      - name: Test the binary
+        run: |
+          ./cosmo-bin/minicoder.com --help
+          
+      - name: Package binaries
+        run: |
+          cd cosmo-bin
+          tar -czf ../minicoder-cosmo-${{ github.ref_name }}.tar.gz *
+          cd ..
+          
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cosmopolitan-binaries
+          path: cosmo-bin/*
+          
