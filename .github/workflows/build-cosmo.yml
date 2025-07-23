@@ -11,21 +11,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Download cosmocc
-        run: |
-          COSMOCC_VERSION="4.0.2"
-          wget -q "https://github.com/jart/cosmopolitan/releases/download/${COSMOCC_VERSION}/cosmocc-${COSMOCC_VERSION}.zip"
-          unzip -q "cosmocc-${COSMOCC_VERSION}.zip"
-          echo "$PWD/cosmocc/bin" >> $GITHUB_PATH
-          
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential git curl
+      - name: Install Nix
+        uses: cachix/install-nix-action@v24
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
           
       - name: Build with Cosmopolitan
         run: |
-          ./support/build-with-cosmo.sh
+          nix-shell support/shell.nix --run "./support/build-with-cosmo.sh"
           
       - name: Test the binary
         run: |
