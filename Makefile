@@ -5,6 +5,11 @@ LDLIBS = -lpthread -lcurl
 SCDOC = scdoc
 PANDOC = pandoc
 
+# Version can be overridden at build time
+ifdef VERSION
+CFLAGS += -DMINICODER_VERSION=\"$(VERSION)\"
+endif
+
 OBJS = main.o util.o model.o agent.o shell.o
 LIB_OBJS = lib/tgc/tgc.o lib/cJSON/cJSON.o
 MAN_PAGES = doc/minicoder.1 doc/minicoder-model-config.5

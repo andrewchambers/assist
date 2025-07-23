@@ -13,6 +13,11 @@
 
 extern tgc_t gc;
 
+// Version information
+#ifndef MINICODER_VERSION
+#define MINICODER_VERSION "dev"
+#endif
+
 // Default files to focus on if none specified
 #define DEFAULT_FOCUS_FILES "README.* [Rr]eadme.*"
 
@@ -206,6 +211,7 @@ static void print_usage(const char *prog_name) {
     fprintf(stderr, "  --focus FILES              Files or globs to focus on initially (space-separated)\n");
     fprintf(stderr, "                             Default: %s\n", DEFAULT_FOCUS_FILES);
     fprintf(stderr, "  --help                     Show this help message\n");
+    fprintf(stderr, "  --version                  Show version information\n");
     fprintf(stderr, "\n");
 }
 
@@ -254,6 +260,9 @@ int assist_main(int argc, char *argv[]) {
             i += 2;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
+            return 0;
+        } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-v") == 0) {
+            printf("minicoder %s\n", MINICODER_VERSION);
             return 0;
         } else {
             fprintf(stderr, "Error: Unknown option: %s\n", argv[i]);

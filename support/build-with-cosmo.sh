@@ -26,7 +26,8 @@ make minicoder \
   CC=cosmocc \
   CFLAGS="-O1 -Ilib/tgc -Ilib/cJSON -I$PROJECT_ROOT/lib/cosmo-curl/curl/include" \
   LDFLAGS="-L$PROJECT_ROOT/lib/cosmo-curl" \
-  LDLIBS="-lpthread $PROJECT_ROOT/lib/cosmo-curl/libcurl.a $PROJECT_ROOT/lib/cosmo-curl/mbedtls.a"
+  LDLIBS="-lpthread $PROJECT_ROOT/lib/cosmo-curl/libcurl.a $PROJECT_ROOT/lib/cosmo-curl/mbedtls.a" \
+  VERSION="${VERSION:-dev}"
 
 # Step 3: Generate platform-specific binaries using assimilate
 echo "Generating platform-specific binaries..."
