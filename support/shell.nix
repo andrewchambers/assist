@@ -6,7 +6,7 @@ let
     version = "4.0.2";
     
     src = pkgs.fetchurl {
-      url = "https://cosmo.zip/pub/cosmocc/cosmocc-${version}.zip";
+      url = "https://github.com/jart/cosmopolitan/releases/download/${version}/cosmocc-${version}.zip";
       sha256 = "0i1zxnn0hlm5j5g63f9nnk0p9r3ckyz19v6ld9jjx1kd81xc7f45";
     };
     
