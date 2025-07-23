@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include "util.h"
-#include "assist.h"
+#include "agent.h"
 #include "model.h"
 
 extern tgc_t gc;
