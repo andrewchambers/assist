@@ -2,6 +2,10 @@
 
 **Website**: [https://andrewchambers.github.io/minicoder/](https://andrewchambers.github.io/minicoder/)
 
+**Downloads**: [itch.io/minicoder](https://andrewchambers.itch.io/minicoder)
+
+**Discord**: [Join our community](https://discord.gg/cZk3yxBxRS)
+
 **⚠️ Alpha version** - Be an early tester and supporter!
 
 `minicoder` is a command line tool that uses ai to assist the user at

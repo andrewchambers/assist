@@ -24,9 +24,13 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
-# Create tag
+# Create tag with release message including itch.io download link
 echo "Creating tag $VERSION..."
-git tag -a "$VERSION" -m "Release $VERSION"
+RELEASE_MESSAGE="Release $VERSION
+
+Download minicoder binaries at: https://andrewchambers.itch.io/minicoder"
+
+git tag -a "$VERSION" -m "$RELEASE_MESSAGE"
 
 echo "Tag $VERSION created successfully"
 echo "To push: git push origin $VERSION"
