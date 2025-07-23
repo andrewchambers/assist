@@ -2,7 +2,7 @@
 *.o
 
 # Executables
-assist
+minicoder
 
 # Static libraries
 *.a
@@ -19,9 +19,9 @@ cosmo-bin/
 *.com
 
 # Downloaded dependencies
-support/cosmo-curl/test_curl
-support/cosmo-curl/curl/
-support/cosmo-curl/mbedtls/
+lib/cosmo-curl/test_curl
+lib/cosmo-curl/curl/
+lib/cosmo-curl/mbedtls/
 
 # Generated documentation
 doc/*.1

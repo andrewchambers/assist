@@ -1,8 +1,10 @@
-# assist
+# minicoder
 
-**Website**: [https://andrewchambers.github.io/assist/](https://andrewchambers.github.io/assist/)
+**Website**: [https://andrewchambers.github.io/minicoder/](https://andrewchambers.github.io/minicoder/)
 
-`assist` is a command line tool that uses ai to assist the user at
+**⚠️ Alpha version** - Be an early tester and supporter!
+
+`minicoder` is a command line tool that uses ai to assist the user at
 any task you can do from the command line on unix systems.
 
 It is designed around a few core ideas: 
@@ -14,16 +16,16 @@ It is designed around a few core ideas:
 ## Examples
 
 ```
-$ assist --focus '*.c' 'Can you fix the compile errors in this project?'
+$ minicoder --focus '*.c' 'Can you fix the compile errors in this project?'
 ```
 
 ```
-$ assist --model openai/o3 'Can you explain the files in the current directory?'
+$ minicoder --model openai/o3 'Can you explain the files in the current directory?'
 ```
 
 ## Support the Project
 
-If you're paying for AI model access through OpenAI, Anthropic, or other providers, consider supporting the development of assist as well! Your contributions help maintain and improve this tool.
+If you're paying for AI model access through OpenAI, Anthropic, or other providers, consider supporting the development of minicoder as well! Your contributions help maintain and improve this tool.
 
 **GitHub Sponsors**: [Sponsor @andrewchambers](https://github.com/sponsors/andrewchambers)
 
@@ -31,18 +33,18 @@ Every contribution, no matter the size, helps keep this project actively maintai
 
 ## Community
 
-Join our Discord community to get help, share ideas, and discuss assist development:
+Join our Discord community to get help, share ideas, and discuss minicoder development:
 
-**Discord**: [Join the assist Discord](https://discord.gg/cZk3yxBxRS)
+**Discord**: [Join the minicoder Discord](https://discord.gg/cZk3yxBxRS)
 
 ## User manuals
 
-- [assist(1)](doc/assist.1.scdoc) - Main manual page
-- [assist-model-config(5)](doc/assist-model-config.5.scdoc) - Model configuration documentation
+- [minicoder(1)](doc/minicoder.1.scdoc) - Main manual page
+- [minicoder-model-config(5)](doc/minicoder-model-config.5.scdoc) - Model configuration documentation
 
 ### Use your own AI models
 
-See [assist-model-config(5)](doc/assist-model-config.5.scdoc) for details on configuring custom models.
+See [minicoder-model-config(5)](doc/minicoder-model-config.5.scdoc) for details on configuring custom models.
 
 ### Sandboxing
 

@@ -7,12 +7,12 @@ PANDOC = pandoc
 
 OBJS = main.o util.o model.o agent.o shell.o
 LIB_OBJS = lib/tgc/tgc.o lib/cJSON/cJSON.o
-MAN_PAGES = doc/assist.1 doc/assist-model-config.5
-WEB_PAGES = www/assist.1.html www/assist-model-config.5.html
+MAN_PAGES = doc/minicoder.1 doc/minicoder-model-config.5
+WEB_PAGES = www/minicoder.1.html www/minicoder-model-config.5.html
 
-all: assist
+all: minicoder
 
-assist: $(OBJS) $(LIB_OBJS)
+minicoder: $(OBJS) $(LIB_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 man: $(MAN_PAGES)
@@ -26,30 +26,18 @@ doc/%.5: doc/%.5.scdoc
 web: $(WEB_PAGES)
 
 
-www/assist.1.html: doc/assist.1 www/style.css
-	@mkdir -p www
-	mandoc -T html -O style=style.css doc/assist.1 > $@.tmp && \
-	sed -e 's|<b>assist-model-config</b>(5)|<a href="assist-model-config.5.html"><b>assist-model-config</b>(5)</a>|g' \
-	    -e 's|<b>assist</b>(1)|<a href="assist.1.html"><b>assist</b>(1)</a>|g' $@.tmp > $@ && \
-	rm -f $@.tmp || \
-	(man2html < doc/assist.1 | sed 's|<HTML>|<!DOCTYPE html><html><head><link rel="stylesheet" href="style.css"><title>assist(1)</title></head><body class="markdown-body">|' | sed 's|</HTML>|</body></html>|' > $@)
+www/minicoder.1.html: doc/minicoder.1 www/style.css
+	./support/man2html.sh doc/minicoder.1 $@
 
-www/assist-model-config.5.html: doc/assist-model-config.5 www/style.css
-	@mkdir -p www
-	mandoc -T html -O style=style.css doc/assist-model-config.5 > $@.tmp && \
-	sed -e 's|<b>assist</b>(1)|<a href="assist.1.html"><b>assist</b>(1)</a>|g' \
-	    -e 's|<b>assist-model-config</b>(5)|<a href="assist-model-config.5.html"><b>assist-model-config</b>(5)</a>|g' \
-	    -e 's|<br/>||g' $@.tmp | \
-	perl -0pe 's|(<pre>[^<]*</pre>)|my $$pre=$$1; $$pre=~s/\n\n/\n/g; $$pre|ge' > $@ && \
-	rm -f $@.tmp || \
-	(man2html < doc/assist-model-config.5 | sed 's|<HTML>|<!DOCTYPE html><html><head><link rel="stylesheet" href="style.css"><title>assist-model-config(5)</title></head><body class="markdown-body">|' | sed 's|</HTML>|</body></html>|' > $@)
+www/minicoder-model-config.5.html: doc/minicoder-model-config.5 www/style.css
+	./support/man2html.sh doc/minicoder-model-config.5 $@
 
-install: assist $(MAN_PAGES)
-	install -Dm755 assist $(DESTDIR)$(PREFIX)/bin/assist
-	install -Dm644 doc/assist.1 $(DESTDIR)$(PREFIX)/share/man/man1/assist.1
-	install -Dm644 doc/assist-model-config.5 $(DESTDIR)$(PREFIX)/share/man/man5/assist-model-config.5
+install: minicoder $(MAN_PAGES)
+	install -Dm755 minicoder $(DESTDIR)$(PREFIX)/bin/minicoder
+	install -Dm644 doc/minicoder.1 $(DESTDIR)$(PREFIX)/share/man/man1/assist.1
+	install -Dm644 doc/minicoder-model-config.5 $(DESTDIR)$(PREFIX)/share/man/man5/minicoder-model-config.5
 
 clean:
-	rm -f assist $(OBJS) $(LIB_OBJS) $(MAN_PAGES) $(WEB_PAGES)
+	rm -f minicoder $(OBJS) $(LIB_OBJS) $(MAN_PAGES) $(WEB_PAGES)
 
 .PHONY: all clean install man web

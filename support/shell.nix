@@ -44,6 +44,6 @@ pkgs.mkShell {
 
   shellHook = ''
     export PATH=$PATH:${cosmocc}/bin
-    echo "assist development environment"
+    echo "minicoder development environment"
   '';
 }

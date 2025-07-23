@@ -1,22 +1,22 @@
-assist-model-config(5)
+minicoder-model-config(5)
 
 # NAME
 
-assist-model-config - AI model configuration file format for assist(1)
+minicoder-model-config - AI model configuration file format for minicoder(1)
 
 # SYNOPSIS
 
-~/.config/assist/models.json
-/etc/assist/models.json
+~/.config/minicoder/models.json
+/etc/minicoder/models.json
 
 # DESCRIPTION
 
-The *assist* command uses JSON configuration files to define available AI models and their parameters. It supports multiple model providers through OpenAI-compatible APIs, including OpenAI, Anthropic (via proxy), Google, local models via Ollama, and many others through services like OpenRouter.
+The *minicoder* command uses JSON configuration files to define available AI models and their parameters. It supports multiple model providers through OpenAI-compatible APIs, including OpenAI, Anthropic (via proxy), Google, local models via Ollama, and many others through services like OpenRouter.
 
 Configuration files are searched in the following order:
 
-1. User configuration: *~/.config/assist/models.json*
-2. System configuration: */etc/assist/models.json*
+1. User configuration: *~/.config/minicoder/models.json*
+2. System configuration: */etc/minicoder/models.json*
 3. Built-in defaults (if no configuration files exist)
 
 The first model defined in the configuration file becomes the default model when no *--model* option is specified.
@@ -159,7 +159,7 @@ Configuration for Ollama (local model server):
 
 # DEFAULT MODELS
 
-If no configuration file is found, *assist* uses built-in models based on available API keys:
+If no configuration file is found, *minicoder* uses built-in models based on available API keys:
 
 - With *OPENROUTER_API_KEY*: A selection of the latest models from OpenAI, Google, X.AI, and other providers
 - With *OPENAI_API_KEY* (when OPENROUTER_API_KEY is not set): A selection of the latest OpenAI models
@@ -181,7 +181,7 @@ API keys can be specified via environment variables using the *api_key_env* fiel
 
 # SEE ALSO
 
-*assist*(1)
+*minicoder*(1)
 
 # AUTHORS
 

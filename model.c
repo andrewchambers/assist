@@ -271,15 +271,15 @@ static char *get_config_path(void) {
     char *path = NULL;
     
     if (config_home) {
-        size_t len = strlen(config_home) + strlen("/assist/models.json") + 1;
+        size_t len = strlen(config_home) + strlen("/minicoder/models.json") + 1;
         path = gc_malloc(len);
         if (!path) return NULL;
-        snprintf(path, len, "%s/assist/models.json", config_home);
+        snprintf(path, len, "%s/minicoder/models.json", config_home);
     } else if (home) {
-        size_t len = strlen(home) + strlen("/.config/assist/models.json") + 1;
+        size_t len = strlen(home) + strlen("/.config/minicoder/models.json") + 1;
         path = gc_malloc(len);
         if (!path) return NULL;
-        snprintf(path, len, "%s/.config/assist/models.json", home);
+        snprintf(path, len, "%s/.config/minicoder/models.json", home);
     }
     
     return path;
@@ -309,7 +309,7 @@ model_config_t *init_models(char **error) {
         models = create_default_models();
         if (!models) {
             if (error) {
-                *error = gc_strdup("No API keys found. Please set OPENROUTER_API_KEY or OPENAI_API_KEY environment variable, or create a config file at ~/.config/assist/models.json");
+                *error = gc_strdup("No API keys found. Please set OPENROUTER_API_KEY or OPENAI_API_KEY environment variable, or create a config file at ~/.config/minicoder/models.json");
             }
             return NULL;
         }

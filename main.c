@@ -54,9 +54,9 @@ static int cancellation_callback(void *user_data) {
 
 // Handle agent commands (agent-focus, agent-unfocus, etc.)
 int agent_command_main(const char *cmd, int argc, char *argv[]) {
-    const char *state_file = getenv("ASSIST_STATE_FILE");
+    const char *state_file = getenv("MINICODER_STATE_FILE");
     if (!state_file) {
-        fprintf(stderr, "Error: ASSIST_STATE_FILE environment variable not set\n");
+        fprintf(stderr, "Error: MINICODER_STATE_FILE environment variable not set\n");
         return 1;
     }
     

@@ -1,16 +1,16 @@
-assist(1)
+minicoder(1)
 
 # NAME
 
-assist - AI-powered assistant for automating tasks on your machine.
+minicoder - AI-powered assistant for automating tasks on your machine.
 
 # SYNOPSIS
 
-*assist* [_options_] <_request_>
+*minicoder* [_options_] <_request_>
 
 # DESCRIPTION
 
-*assist* is a local AI-powered assistant that helps with coding, system administration, data analysis, and other tasks. It works iteratively, executing commands through a controlled shell environment while maintaining focus on specific files.
+*minicoder* is a local AI-powered assistant that helps with coding, system administration, data analysis, and other tasks. It works iteratively, executing commands through a controlled shell environment while maintaining focus on specific files.
 
 The assistant can read files, execute shell commands, track changes, and perform complex multi-step tasks autonomously until the task is complete or the iteration limit is reached.
 
@@ -23,7 +23,7 @@ The assistant can read files, execute shell commands, track changes, and perform
 	Set the maximum number of iterations the assistant will perform (default: 50).
 
 *--model* _MODEL_
-	Specify which AI model to use. Overrides the ASSIST_MODEL environment variable. If neither is specified, the first available model from the configuration is used.
+	Specify which AI model to use. Overrides the MINICODER_MODEL environment variable. If neither is specified, the first available model from the configuration is used.
 
 *--show-reasoning*
 	Display reasoning output for models that support it (e.g., models with reasoning capabilities).
@@ -42,23 +42,23 @@ The assistant can read files, execute shell commands, track changes, and perform
 *OPENAI_API_KEY*
 	API key for OpenAI services. When set without OPENROUTER_API_KEY, enables a selection of the latest OpenAI models.
 
-*ASSIST_MODEL*
+*MINICODER_MODEL*
 	Specify the default model to use. This overrides the default model selection but can still be overridden by the --model command line option.
 
 
 # FILES
 
-*~/.config/assist/models.json*
+*~/.config/minicoder/models.json*
 	User configuration file for AI models (optional).
 
-*/etc/assist/models.json*
+*/etc/minicoder/models.json*
 	System-wide configuration file for AI models (optional).
 
 # CONFIGURATION
 
-*assist* can be configured to use different AI models and endpoints through configuration files. If no configuration file exists, the tool will use default models based on available API keys (OPENROUTER_API_KEY or OPENAI_API_KEY).
+*minicoder* can be configured to use different AI models and endpoints through configuration files. If no configuration file exists, the tool will use default models based on available API keys (OPENROUTER_API_KEY or OPENAI_API_KEY).
 
-For detailed information about configuring models, including file format, available parameters, and examples, see *assist-model-config*(5).
+For detailed information about configuring models, including file format, available parameters, and examples, see *minicoder-model-config*(5).
 
 # EXIT STATUS
 
@@ -71,21 +71,21 @@ For detailed information about configuring models, including file format, availa
 # EXAMPLES
 
 Request help with a coding task:
-	$ assist "Fix the memory leak in util.c"
+	$ minicoder "Fix the memory leak in util.c"
 
 Use a specific model with debug output:
-	$ assist --model gemini --debug "Add error handling to the parser"
+	$ minicoder --model gemini --debug "Add error handling to the parser"
 
 Focus on specific files for the task:
-	$ assist --focus "src/*.c src/*.h" "Refactor the authentication module"
+	$ minicoder --focus "src/*.c src/*.h" "Refactor the authentication module"
 
 Show reasoning for supported models:
-	$ assist --model o3 --show-reasoning "Optimize the database queries"
+	$ minicoder --model o3 --show-reasoning "Optimize the database queries"
 
 # SEE ALSO
 
-*assist-model-config*(5)
+*minicoder-model-config*(5)
 
 # AUTHORS
 
-Maintained by the assist project contributors.
+Maintained by the minicoder project contributors.

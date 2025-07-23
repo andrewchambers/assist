@@ -132,7 +132,7 @@ static void read_state_json(const char *path, AssistantState *state, AssistantCo
 
 char* execute_script(const char *script, AssistantState *state, AssistantCommandState *cmd_state) {
     // Create temporary directory
-    char temp_template[] = "/tmp/assist-XXXXXX";
+    char temp_template[] = "/tmp/minicoder-XXXXXX";
     char *temp_dir = mkdtemp(temp_template);
     if (!temp_dir) {
         return gc_strdup("Error: Failed to create temporary directory");
@@ -189,7 +189,7 @@ char* execute_script(const char *script, AssistantState *state, AssistantCommand
     
     // Write script with proper shebang and settings
     if (fprintf(f, "#!/bin/sh\n") < 0 ||
-        fprintf(f, "export ASSIST_STATE_FILE='%s'\n", state_path) < 0 ||
+        fprintf(f, "export MINICODER_STATE_FILE='%s'\n", state_path) < 0 ||
         fprintf(f, "export PATH='%s/bin:%s'\n", temp_dir, current_path) < 0 || 
         fprintf(f, "set -ex\n") < 0) {
         fclose(f);
