@@ -30,9 +30,51 @@ jobs:
           tar -czf ../minicoder-cosmo-${{ github.ref_name }}.tar.gz *
           cd ..
           
-      - name: Upload artifacts
+      - name: Upload portable binary (.com)
         uses: actions/upload-artifact@v4
         with:
-          name: cosmopolitan-binaries
-          path: cosmo-bin/*
+          name: minicoder.com
+          path: cosmo-bin/minicoder.com
+          
+      - name: Upload Linux AMD64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: minicoder-linux-amd64
+          path: cosmo-bin/minicoder-linux-amd64
+          
+      - name: Upload Linux ARM64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: minicoder-linux-arm64
+          path: cosmo-bin/minicoder-linux-arm64
+          
+      - name: Upload FreeBSD AMD64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: minicoder-freebsd-amd64
+          path: cosmo-bin/minicoder-freebsd-amd64
+          
+      - name: Upload OpenBSD AMD64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: minicoder-openbsd-amd64
+          path: cosmo-bin/minicoder-openbsd-amd64
+          
+      - name: Upload NetBSD AMD64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: minicoder-netbsd-amd64
+          path: cosmo-bin/minicoder-netbsd-amd64
+          
+      - name: Upload macOS AMD64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: minicoder-darwin-amd64
+          path: cosmo-bin/minicoder-darwin-amd64
+          
+      - name: Upload macOS ARM64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: minicoder-darwin-arm64
+          path: cosmo-bin/minicoder-darwin-arm64
           

@@ -47,7 +47,4 @@ if [ ! -d "${CURL_DIR}" ]; then
     patch -p0 < curl-setup.patch
 fi
 
-# Create marker file to indicate successful download
-touch .downloaded
-
 echo "All sources downloaded and extracted successfully."
