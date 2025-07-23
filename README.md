@@ -16,8 +16,7 @@ any task you can do from the command line on unix systems.
 It is designed around a few core ideas: 
 
 - Follow good cli and unix design practices.
-- Support as many AI models as possible with a universal and simple interface.
-- AI advances will keep improving the tool without complicating the tool itself.
+- Keep the tool as simple as possible, relying on AI advances to improve.
 
 ## Examples
 
@@ -31,11 +30,9 @@ $ minicoder --model openai/o3 'Can you explain the files in the current director
 
 ## Support the Project
 
-If you're paying for AI model access through OpenAI, Anthropic, or other providers, consider supporting the development of minicoder as well! Your contributions help maintain and improve this tool.
+minicoder is free and open source software. You can build it yourself from source, or download pre-built statically linked binaries from [itch.io](https://andrewchambers.itch.io/minicoder) with pay-what-you-like pricing.
 
-**GitHub Sponsors**: [Sponsor @andrewchambers](https://github.com/sponsors/andrewchambers)
-
-Every contribution, no matter the size, helps keep this project actively maintained and improved.
+Your support helps maintain and improve this tool for everyone.
 
 ## Community
 
