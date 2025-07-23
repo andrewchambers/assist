@@ -6,6 +6,17 @@
     <title>minicoder - Lightweight CLI agent for any task</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        /* Prevent iOS text size adjustment in Asciinema player */
+        #demo-player {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+        /* Force consistent font sizing in Asciinema terminal */
+        #demo-player .asciinema-terminal {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            font-size: 14px !important;
+        }
         /* GitHub corner styles */
         .github-corner:hover .octo-arm {
             animation: octocat-wave 560ms ease-in-out;
@@ -141,12 +152,15 @@ automation, and more. Just describe what you need.</span>
             <script src="asciinema-player.min.js"></script>
             <div id="demo-player"></div>
             <script>
+                // Detect mobile to adjust font size
+                const isMobile = window.innerWidth <= 768;
                 AsciinemaPlayer.create('./minicoder-demo.cast', document.getElementById('demo-player'), {
                     autoPlay: true,
                     loop: true,
                     theme: 'monokai',
                     fit: false,
-                    terminalFontSize: 'medium'
+                    terminalFontSize: isMobile ? 'small' : 'medium',
+                    terminalFontFamily: '"SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
                 });
             </script>
         </div>
