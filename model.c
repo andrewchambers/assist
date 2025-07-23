@@ -17,8 +17,21 @@ static model_config_t *create_default_models(void) {
     const char *openai_key = getenv("OPENAI_API_KEY");
     
     if (!openrouter_key && !openai_key) {
-        // No API keys available
-        return NULL;
+        // No API keys available - set up default Ollama model
+        model_config_t *config = gc_malloc(sizeof(model_config_t));
+        config->count = 1;
+        config->models = gc_malloc(sizeof(model_t) * config->count);
+        
+        // Default to qwen3:32b over Ollama
+        config->models[0].name = gc_strdup("qwen3-32b");
+        config->models[0].type = MODEL_TYPE_OPENAI;
+        config->models[0].max_context_bytes = 131072;  // ~32K tokens * 4 bytes/token
+        config->models[0].config.openai.endpoint = gc_strdup("http://localhost:11434/v1/chat/completions");
+        config->models[0].config.openai.model = gc_strdup("qwen3:32b");
+        config->models[0].config.openai.api_key = gc_strdup("ollama");  // Ollama doesn't require API key, but field is needed
+        config->models[0].config.openai.params = gc_strdup("{\"stream\":true}");
+        
+        return config;
     }
     
     model_config_t *config = gc_malloc(sizeof(model_config_t));
@@ -309,7 +322,7 @@ model_config_t *init_models(char **error) {
         models = create_default_models();
         if (!models) {
             if (error) {
-                *error = gc_strdup("No API keys found. Please set OPENROUTER_API_KEY or OPENAI_API_KEY environment variable, or create a config file at ~/.config/minicoder/models.json");
+                *error = gc_strdup("Failed to create default models");
             }
             return NULL;
         }
