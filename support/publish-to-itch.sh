@@ -92,8 +92,9 @@ butler push "cosmo-bin/minicoder-freebsd-amd64" "${ITCH_USER}/${ITCH_GAME}:freeb
 echo "Pushing OpenBSD AMD64 binary..."
 butler push "cosmo-bin/minicoder-openbsd-amd64" "${ITCH_USER}/${ITCH_GAME}:openbsd-amd64" --userversion "$VERSION"
 
-echo "Pushing NetBSD AMD64 binary..."
-butler push "cosmo-bin/minicoder-netbsd-amd64" "${ITCH_USER}/${ITCH_GAME}:netbsd-amd64" --userversion "$VERSION"
+# NetBSD channel disabled for now to reduce clutter
+# echo "Pushing NetBSD AMD64 binary..."
+# butler push "cosmo-bin/minicoder-netbsd-amd64" "${ITCH_USER}/${ITCH_GAME}:netbsd-amd64" --userversion "$VERSION"
 
 # macOS binaries
 echo "Pushing macOS AMD64 binary..."

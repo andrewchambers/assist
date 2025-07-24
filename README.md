@@ -58,12 +58,12 @@ minicoder --focus 'src/*.js tests/*.js' "Add unit tests"
 
 ## User manuals
 
-- [minicoder(1)](doc/minicoder.1.scdoc) - Main manual page
-- [minicoder-model-config(5)](doc/minicoder-model-config.5.scdoc) - Model configuration documentation
+- [minicoder(1)](https://andrewchambers.github.io/minicoder/minicoder.1.html) - Main manual page
+- [minicoder-model-config(5)](https://andrewchambers.github.io/minicoder/minicoder-model-config.5.html) - Model configuration documentation
 
 ### Use your own AI models
 
-See [minicoder-model-config(5)](doc/minicoder-model-config.5.scdoc) for details on configuring custom models.
+See [minicoder-model-config(5)](https://andrewchambers.github.io/minicoder/minicoder-model-config.5.html) for details on configuring custom models.
 
 ### Sandboxing
 
