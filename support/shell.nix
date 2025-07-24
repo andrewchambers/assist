@@ -43,6 +43,7 @@ pkgs.mkShell {
     asciinema-agg
     butler
     valgrind
+    bubblewrap
   ];
 
   shellHook = ''
