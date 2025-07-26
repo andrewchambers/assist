@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -O1 -g -Ilib/tgc -Ilib/cJSON
+CFLAGS = -O1 -g -Ilib/cJSON
 LDFLAGS =
 LDLIBS = -lpthread -lcurl
 SCDOC = scdoc
@@ -10,8 +10,8 @@ ifdef VERSION
 CFLAGS += -DMINICODER_VERSION=\"$(VERSION)\"
 endif
 
-OBJS = main.o util.o model.o agent.o shell.o
-LIB_OBJS = lib/tgc/tgc.o lib/cJSON/cJSON.o
+OBJS = main.o util.o model.o agent.o execute.o spinner.o gc.o string.o
+LIB_OBJS = lib/cJSON/cJSON.o
 MAN_PAGES = doc/minicoder.1 doc/minicoder-model-config.5
 WEB_PAGES = www/minicoder.1.html www/minicoder-model-config.5.html
 

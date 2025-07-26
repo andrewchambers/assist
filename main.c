@@ -1,5 +1,5 @@
 #define _GNU_SOURCE
-#include <tgc.h>
+#include "gc.h"
 #include <cJSON.h>
 #include <string.h>
 #include <libgen.h>
@@ -8,15 +8,25 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include "util.h"
+#include "string.h"
 #include "agent.h"
 #include "model.h"
 
-extern tgc_t gc;
+gc_state gc;
 
 // Version information
 #ifndef MINICODER_VERSION
 #define MINICODER_VERSION "dev"
 #endif
+
+// Wrapper functions for cJSON hooks
+static void *cjson_malloc_wrapper(size_t size) {
+    return gc_malloc(&gc, size);
+}
+
+static void cjson_free_wrapper(void *ptr) {
+    // gc doesn't have explicit free, do nothing
+}
 
 // Default files to focus on if none specified
 
@@ -33,16 +43,16 @@ static void signal_handler(int sig) {
 
 // Read message from stdin (for agent-done and agent-abort)
 static char* read_message_from_stdin() {
-    gc_string_builder_t sb;
-    gc_string_builder_init(&sb, 1024);
+    string_builder_t sb;
+    string_builder_init(&sb, &gc, 1024);
     
     char buffer[1024];
     while (fgets(buffer, sizeof(buffer), stdin) != NULL) {
-        gc_string_builder_append_str(&sb, buffer);
+        string_builder_append_str(&sb, buffer);
     }
     
     // Trim trailing newline if present
-    char *msg = gc_string_builder_finalize(&sb);
+    char *msg = string_builder_finalize(&sb);
     int len = strlen(msg);
     if (len > 0 && msg[len-1] == '\n') {
         msg[len-1] = '\0';
@@ -308,13 +318,13 @@ int assist_main(int argc, char *argv[]) {
     }
     
     // Concatenate remaining arguments as the user request
-    gc_string_builder_t sb;
-    gc_string_builder_init(&sb, 256);
+    string_builder_t sb;
+    string_builder_init(&sb, &gc, 256);
     for (int j = i; j < argc; j++) {
-        if (j > i) gc_string_builder_append_str(&sb, " ");
-        gc_string_builder_append_str(&sb, argv[j]);
+        if (j > i) string_builder_append_str(&sb, " ");
+        string_builder_append_str(&sb, argv[j]);
     }
-    char *user_request = gc_string_builder_finalize(&sb);
+    char *user_request = string_builder_finalize(&sb);
     
     // Process focus files
     char **focus_files = NULL;
@@ -326,7 +336,7 @@ int assist_main(int argc, char *argv[]) {
         int ret = expand_globs(focus_arg, &exp_result);
         if (ret == 0) {
             // Allocate array for expanded files
-            focus_files = gc_malloc(exp_result.we_wordc * sizeof(char*));
+            focus_files = gc_malloc(&gc, exp_result.we_wordc * sizeof(char*));
             focus_count = 0;
             
             // Copy expanded files that exist
@@ -384,12 +394,12 @@ int assist_main(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
     // Initialize the garbage collector
-    tgc_start(&gc, &argc);
+    gc_init(&gc, &argc);
     
     // Initialize cJSON to use gc memory management
     cJSON_Hooks hooks;
-    hooks.malloc_fn = gc_malloc;
-    hooks.free_fn = gc_free;
+    hooks.malloc_fn = cjson_malloc_wrapper;
+    hooks.free_fn = cjson_free_wrapper;
     cJSON_InitHooks(&hooks);
     
     // Initialize self_exec_path with argv[0]
@@ -413,7 +423,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Clean up the garbage collector
-    tgc_stop(&gc);
+    gc_cleanup(&gc);
     
     return result;
 }

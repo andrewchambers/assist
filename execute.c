@@ -1,5 +1,8 @@
 #include "agent.h"
 #include "util.h"
+#include "gc.h"
+#include "string.h"
+#include "execute.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,7 +11,113 @@
 #include <limits.h>
 #include <cJSON.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
+extern gc_state gc;
+
+int exec_command(const char *command, char **out_output, int forward_output) {
+    if (!command) {
+        return 0;  // No command, consider it a success
+    }
+    
+    if (out_output) {
+        *out_output = NULL;
+    }
+    
+    // Get shell from environment or use default
+    const char *shell = getenv("MINICODER_SHELL");
+    if (!shell) {
+        shell = "/bin/sh";
+    }
+    
+    // Set up shell arguments
+    char *shell_args[4];
+    shell_args[0] = (char *)shell;
+    shell_args[1] = "-c";
+    shell_args[2] = (char *)command;
+    shell_args[3] = NULL;
+    
+    // Create pipe for capturing output
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        if (out_output) {
+            *out_output = gc_asprintf("Failed to create pipe: %s", strerror(errno));
+        }
+        return -1;
+    }
+    
+    pid_t pid = fork();
+    if (pid == -1) {
+        if (out_output) {
+            *out_output = gc_asprintf("Failed to fork: %s", strerror(errno));
+        }
+        close(pipefd[0]);
+        close(pipefd[1]);
+        return -1;
+    }
+    
+    if (pid == 0) {
+        // Child process
+        close(pipefd[0]);  // Close read end
+        
+        // Redirect stdout and stderr to pipe
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            _exit(127);
+        }
+        if (dup2(pipefd[1], STDERR_FILENO) == -1) {
+            _exit(127);
+        }
+        close(pipefd[1]);  // Close original write end
+        
+        // Execute command
+        execvp(shell, shell_args);
+        // If we get here, execvp failed
+        _exit(127);
+    }
+    
+    // Parent process
+    close(pipefd[1]);  // Close write end
+    
+    // Read output from pipe
+    string_builder_t sb;
+    string_builder_init(&sb, &gc, 4096);
+    
+    char buffer[4096];
+    ssize_t bytes_read;
+    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[bytes_read] = '\0';
+        string_builder_append_str(&sb, buffer);
+        
+        // Forward output to parent terminal if requested
+        if (forward_output) {
+            if (write(STDOUT_FILENO, buffer, bytes_read) == -1) {
+                // Ignore write errors for output forwarding
+            }
+        }
+    }
+    close(pipefd[0]);
+    
+    // Wait for child process
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        if (out_output) {
+            *out_output = gc_asprintf("Failed to wait for child process: %s", strerror(errno));
+        }
+        return -1;
+    }
+    
+    if (out_output) {
+        *out_output = string_builder_finalize(&sb);
+    }
+    
+    // Check exit status
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    
+    return -1;  // Process terminated abnormally
+}
 
 // Write the current state to a JSON file
 static int write_state_json(const char *path, AgentCommandState *cmd_state) {
@@ -105,7 +214,7 @@ static void read_state_json(const char *path, AgentState *state, AgentCommandSta
     // Update working directory
     cJSON *wd = cJSON_GetObjectItem(root, "working_dir");
     if (wd && cJSON_IsString(wd)) {
-        gc_free(state->working_dir);
+        // gc doesn't have explicit free
         state->working_dir = gc_strdup(cJSON_GetStringValue(wd));
         cmd_state->working_dir = state->working_dir;
     }
@@ -114,7 +223,7 @@ static void read_state_json(const char *path, AgentState *state, AgentCommandSta
     cJSON *focused = cJSON_GetObjectItem(root, "focused_files");
     if (focused && cJSON_IsArray(focused)) {
         int new_count = cJSON_GetArraySize(focused);
-        char **new_files = gc_malloc(new_count * sizeof(char*));
+        char **new_files = gc_malloc(&gc, new_count * sizeof(char*));
         
         for (int i = 0; i < new_count; i++) {
             cJSON *item = cJSON_GetArrayItem(focused, i);
@@ -241,16 +350,16 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     }
     
     // Build result
-    gc_string_builder_t sb;
-    gc_string_builder_init(&sb, 1024);
+    string_builder_t sb;
+    string_builder_init(&sb, &gc, 1024);
     
     if (output) {
-        gc_string_builder_append_str(&sb, output);
+        string_builder_append_str(&sb, output);
     }
     
     if (exit_code != 0 && !state->done && !state->aborted) {
-        gc_string_builder_append_fmt(&sb, "\n[Script exited with code %d]\n", exit_code);
+        string_builder_append_fmt(&sb, "\n[Script exited with code %d]\n", exit_code);
     }
     
-    return gc_string_builder_finalize(&sb);
+    return string_builder_finalize(&sb);
 }

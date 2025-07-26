@@ -1,5 +1,7 @@
 #include "model.h"
 #include "util.h"
+#include "gc.h"
+#include "string.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +9,8 @@
 #include <errno.h>
 #include <cJSON.h>
 #include <curl/curl.h>
+
+extern gc_state gc;
 
 // N.B. Because we initialized cJSON elsewhere to use our gc, we don't
 // need to call cJSON free functions manually.
@@ -18,9 +22,9 @@ static model_config_t *create_default_models(void) {
     
     if (!openrouter_key && !openai_key) {
         // No API keys available - set up default Ollama model
-        model_config_t *config = gc_malloc(sizeof(model_config_t));
+        model_config_t *config = gc_malloc(&gc, sizeof(model_config_t));
         config->count = 1;
-        config->models = gc_malloc(sizeof(model_t) * config->count);
+        config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
         
         // Default to qwen3:32b over Ollama
         config->models[0].name = gc_strdup("qwen3-32b");
@@ -34,12 +38,12 @@ static model_config_t *create_default_models(void) {
         return config;
     }
     
-    model_config_t *config = gc_malloc(sizeof(model_config_t));
+    model_config_t *config = gc_malloc(&gc, sizeof(model_config_t));
     
     if (openrouter_key) {
         // Use OpenRouter models
         config->count = 6;
-        config->models = gc_malloc(sizeof(model_t) * config->count);
+        config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
         
         // Default model is first
         config->models[0].name = gc_strdup("o3");
@@ -94,7 +98,7 @@ static model_config_t *create_default_models(void) {
     } else {
         // Use OpenAI models as fallback
         config->count = 2;
-        config->models = gc_malloc(sizeof(model_t) * config->count);
+        config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
         
         // o4-mini
         config->models[0].name = gc_strdup("o4-mini");
@@ -156,8 +160,8 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
         return NULL;
     }
     
-    model_config_t *config = gc_malloc(sizeof(model_config_t));
-    config->models = gc_malloc(sizeof(model_t) * count);
+    model_config_t *config = gc_malloc(&gc, sizeof(model_config_t));
+    config->models = gc_malloc(&gc, sizeof(model_t) * count);
     config->count = count;
     
     int index = 0;
@@ -264,12 +268,12 @@ static char *get_config_path(void) {
     
     if (config_home) {
         size_t len = strlen(config_home) + strlen("/minicoder/models.json") + 1;
-        path = gc_malloc(len);
+        path = gc_malloc(&gc, len);
         if (!path) return NULL;
         snprintf(path, len, "%s/minicoder/models.json", config_home);
     } else if (home) {
         size_t len = strlen(home) + strlen("/.config/minicoder/models.json") + 1;
-        path = gc_malloc(len);
+        path = gc_malloc(&gc, len);
         if (!path) return NULL;
         snprintf(path, len, "%s/.config/minicoder/models.json", home);
     }
@@ -384,7 +388,7 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
         }
     }
     
-    char *ptr = gc_realloc(mem->data, mem->size + realsize + 1);
+    char *ptr = gc_realloc(&gc, mem->data, mem->size + realsize + 1);
     if (!ptr) {
         return 0;  // Out of memory
     }
@@ -399,8 +403,8 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
 
 // Structure to hold streaming state
 struct streaming_state {
-    gc_string_builder_t response_buffer;      // Complete response
-    gc_string_builder_t line_buffer;          // Partial line buffer
+    string_builder_t response_buffer;      // Complete response
+    string_builder_t line_buffer;          // Partial line buffer
     const model_completion_options_t *options;
     char **error;
     int done;
@@ -423,7 +427,7 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
     }
     
     // Append new data to line buffer
-    gc_string_builder_append(&state->line_buffer, contents, realsize);
+    string_builder_append(&state->line_buffer, contents, realsize);
     
     // Process complete lines
     char *buffer = state->line_buffer.data;
@@ -438,7 +442,7 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
             // Skip empty lines
             if (line_len > 0) {
                 // Process the line
-                char *line = gc_malloc(line_len + 1);
+                char *line = gc_malloc(&gc, line_len + 1);
                 memcpy(line, buffer + line_start, line_len);
                 line[line_len] = '\0';
                 
@@ -474,7 +478,7 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
                                             size_t text_len = strlen(text);
                                             
                                             // Append to response buffer
-                                            gc_string_builder_append(&state->response_buffer, text, text_len);
+                                            string_builder_append(&state->response_buffer, text, text_len);
                                             
                                             // Call output callback if provided
                                             if (state->options && state->options->output_callback && text_len) {
@@ -556,8 +560,8 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     
     // Initialize streaming state
     struct streaming_state state = {0};
-    gc_string_builder_init(&state.response_buffer, 1024);
-    gc_string_builder_init(&state.line_buffer, 1024);
+    string_builder_init(&state.response_buffer, &gc, 1024);
+    string_builder_init(&state.line_buffer, &gc, 1024);
     state.options = options;
     state.error = error;
     state.done = 0;
@@ -638,7 +642,7 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     }
     
     // Release the response buffer and return the complete response
-    char *complete_response = gc_string_builder_finalize(&state.response_buffer);
+    char *complete_response = string_builder_finalize(&state.response_buffer);
     
     if (!complete_response || strlen(complete_response) == 0) {
         if (error) {
@@ -664,7 +668,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     
     // Prepare response buffer
     struct curl_response response = {0};
-    response.data = gc_malloc(1);  // Will be grown as needed by gc_realloc
+    response.data = gc_malloc(&gc, 1);  // Will be grown as needed by gc_realloc
     response.size = 0;
     response.options = options;
     response.error = error;
