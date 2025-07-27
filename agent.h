@@ -16,7 +16,7 @@ typedef struct {
 typedef struct {
     char **focused_files;
     int focused_files_count;
-    char *iteration_history;  // Combined history of all iterations
+    char *iteration_history;  // Last iteration only
     int iteration;
     bool done;
     char *done_message;
@@ -58,8 +58,7 @@ AgentResult run_agent(AgentArgs *args);
 
 // Helper functions
 char* extract_exec_script(const char *text);
-char* truncate_history(const char *history, int max_size);
-char* get_focused_content(char **files, int file_count, int max_size);
+char* get_focused_content(char **files, int file_count);
 
 // From shell.c
 char* execute_script(const char *script, AgentState *state, AgentCommandState *cmd_state);

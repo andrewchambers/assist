@@ -127,82 +127,39 @@ char* extract_exec_script(const char *text) {
     return string_builder_finalize(&sb);
 }
 
-char* truncate_history(const char *history, int max_size) {
-    if (!history) return gc_strdup("(none)");
-    
-    int len = strlen(history);
-    if (len <= max_size) {
-        return gc_strdup(history);
-    }
-    
-    // Find a good starting point after truncation
-    const char *start = history + (len - max_size);
-    const char *newline = strchr(start, '\n');
-    if (newline) {
-        start = newline + 1;
-    }
-    
-    return gc_asprintf("[... older iterations truncated ...]\n\n%s", start);
-}
-
-
-char* get_focused_content(char **files, int file_count, int max_size) {
+char* get_focused_content(char **files, int file_count) {
     string_builder_t sb;
     string_builder_init(&sb, &gc, 1024);
     
-    int total_size = 0;
-    
-    // First pass: check total size
+    // Read file contents
     for (int i = 0; i < file_count; i++) {
-        struct stat st;
-        if (stat(files[i], &st) == 0) {
-            total_size += st.st_size;
+        if (i > 0) {
+            string_builder_append_str(&sb, "\n\n");
         }
-    }
-    
-    if (total_size > max_size) {
-        string_builder_append_str(&sb, "[WARNING: Focused content size limit exceeded!]\n\n");
-        string_builder_append_fmt(&sb, "Total size of focused files: %d bytes (limit: %d bytes)\n", total_size, max_size);
-        string_builder_append_str(&sb, "You need to unfocus some files to stay within the limit.\n\n");
-        string_builder_append_str(&sb, "Currently focused files:\n");
         
-        for (int i = 0; i < file_count; i++) {
+        string_builder_append_fmt(&sb, "--- %s ---\n", files[i]);
+        
+        char *bin_error = NULL;
+        int is_binary = is_binary_file(files[i], &bin_error);
+        
+        if (is_binary == -1) {
+            // Error checking if file is binary
+            string_builder_append_fmt(&sb, "[Error: %s]", bin_error ? bin_error : "Failed to check file");
+        } else if (is_binary == 1) {
+            // File is binary
             struct stat st;
             if (stat(files[i], &st) == 0) {
-                string_builder_append_fmt(&sb, "- %s (%ld bytes)\n", files[i], st.st_size);
-            }
-        }
-    } else {
-        // Read file contents
-        for (int i = 0; i < file_count; i++) {
-            if (i > 0) {
-                string_builder_append_str(&sb, "\n\n");
-            }
-            
-            string_builder_append_fmt(&sb, "--- %s ---\n", files[i]);
-            
-            char *bin_error = NULL;
-            int is_binary = is_binary_file(files[i], &bin_error);
-            
-            if (is_binary == -1) {
-                // Error checking if file is binary
-                string_builder_append_fmt(&sb, "[Error: %s]", bin_error ? bin_error : "Failed to check file");
-            } else if (is_binary == 1) {
-                // File is binary
-                struct stat st;
-                if (stat(files[i], &st) == 0) {
-                    string_builder_append_fmt(&sb, "[Binary data (%ld bytes)]", st.st_size);
-                } else {
-                    string_builder_append_str(&sb, "[Binary data]");
-                }
+                string_builder_append_fmt(&sb, "[Binary data (%ld bytes)]", st.st_size);
             } else {
-                char *error = NULL;
-                char *content = file_to_string(files[i], &error);
-                if (content) {
-                    string_builder_append_str(&sb, content);
-                } else {
-                    string_builder_append_fmt(&sb, "[Error reading file: %s]", error ? error : "Unknown error");
-                }
+                string_builder_append_str(&sb, "[Binary data]");
+            }
+        } else {
+            char *error = NULL;
+            char *content = file_to_string(files[i], &error);
+            if (content) {
+                string_builder_append_str(&sb, content);
+            } else {
+                string_builder_append_fmt(&sb, "[Error reading file: %s]", error ? error : "Unknown error");
             }
         }
     }
@@ -238,7 +195,7 @@ static char* build_prompt(const PromptBuildArgs *args) {
     
     string_builder_append_str(&sb, "You may output a shell script in the following format for execution:\n\n");
     string_builder_append_str(&sb, "exec\n```\n");
-    string_builder_append_str(&sb, "Your posix shell script here\n");
+    string_builder_append_str(&sb, "# Your posix shell script here\n");
     string_builder_append_str(&sb, "```\n\n");
     
     string_builder_append_str(&sb, "The code blocks support markdown-style delimiters (3+ ` or ~).\n");
@@ -250,16 +207,17 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "```\n\n");
     
     string_builder_append_str(&sb, "The output of this script execution will be given back to you at the next iteration of this loop.\n");
+    string_builder_append_str(&sb, "Each script starts in the agent's working directory (shown in CURRENT STATE below).\n");
     string_builder_append_str(&sb, "The script starts with -e set and therefore exits immediately if any command fails.\n");
     string_builder_append_str(&sb, "The script starts with -x set by default so you can debug any issues more easily.\n\n");
     
     string_builder_append_str(&sb, "The following shell builtin commands have been added to help you control the agent loop.\n\n");
     string_builder_append_str(&sb, "- agent-focus PATH...\n");
-    string_builder_append_str(&sb, "  The focus command will add files to the current context such that the contents appear in future iterations automatically.\n");
-    string_builder_append_str(&sb, "- agent-unfocus PATH...\n");
-    string_builder_append_str(&sb, "  The unfocus commands removes files from the current focus.\n");
+    string_builder_append_str(&sb, "  Replace the focused file list with the specified files. Files will appear in future iterations automatically.\n");
+    string_builder_append_str(&sb, "  Use without arguments to clear all focused files.\n");
     string_builder_append_str(&sb, "- agent-cd PATH\n");
-    string_builder_append_str(&sb, "  Change the agent's working directory.\n");
+    string_builder_append_str(&sb, "  Change the agent's working directory for all future iterations. This persists across iterations.\n");
+    string_builder_append_str(&sb, "  Note: This is different from 'cd' which only affects the current script execution.\n");
     string_builder_append_str(&sb, "- agent-abort\n");
     string_builder_append_str(&sb, "   Abort the agent loop as failed. Reads an optional message from stdin or answer for the user.\n");
     string_builder_append_str(&sb, "- agent-done\n");
@@ -275,8 +233,7 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "- What still needs to be done in future iterations\n\n");
     string_builder_append_str(&sb, "A nested and bulleted todo list with [done] markers would be a good way to track your progress.\n");
     
-    string_builder_append_str(&sb, "A history of previous iterations (including your full responses and command outputs) will be preserved below,\n");
-    string_builder_append_str(&sb, "though older iterations will be phased out of context gradually.\n\n");
+    string_builder_append_str(&sb, "Only the last iteration (including your response, exec block and command output) will be shown below.\n\n");
     
     string_builder_append_str(&sb, "You must exec the `agent-done` command to end iteration. Use the message to answer questions or explain what was achieved.\n\n");
     
@@ -290,7 +247,7 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "Focused files:\n\n");
     string_builder_append_fmt(&sb, "%s\n\n", args->focused_files);
     
-    string_builder_append_str(&sb, "History of previous iterations:\n\n");
+    string_builder_append_str(&sb, "Last iteration:\n\n");
     string_builder_append_fmt(&sb, "%s", args->history);
     
     return string_builder_finalize(&sb);
@@ -397,44 +354,14 @@ AgentResult run_agent(AgentArgs *args) {
         string_builder_t iteration_sb;
         string_builder_init(&iteration_sb, &gc, 1024);
         
-        // Calculate proportional context allocation based on model limits
-        // (system_prompt_size was calculated once before the loop and already includes user_request)
-        
-        size_t safety_margin = 1000; // Buffer for formatting, etc.
-        
-        // Calculate available context for focused files and history
-        size_t model_limit = model->max_context_bytes;
-        size_t available_context = 0;
-        if (model_limit > (system_prompt_size + safety_margin)) {
-            available_context = model_limit - system_prompt_size - safety_margin;
-        }
-        
-        size_t dynamic_focused_limit = (size_t)(available_context * 0.7);
-        size_t dynamic_history_limit = (size_t)(available_context * 0.3);
-        
-        // Use the dynamically calculated limits
-        size_t effective_focused_limit = dynamic_focused_limit;
-        size_t effective_history_limit = dynamic_history_limit;
-        
-        if (args->debug) {
-            fprintf(args->output, "\n--- DEBUG: Context Allocation ---\n");
-            fprintf(args->output, "Model: %s (max context: %zu bytes)\n", model->name, model->max_context_bytes);
-            fprintf(args->output, "Available context: %zu bytes\n", available_context);
-            fprintf(args->output, "Focused files limit: %zu bytes\n", effective_focused_limit);
-            fprintf(args->output, "History limit: %zu bytes\n", effective_history_limit);
-            fprintf(args->output, "--- END DEBUG ---\n\n");
-        }
-        
         char *focused_files = "(none)";
         if (state.focused_files_count > 0) {
             focused_files = get_focused_content(state.focused_files, 
-                                              state.focused_files_count, 
-                                              effective_focused_limit);
+                                              state.focused_files_count);
         }
 
-        // Even though we might have some unused focus space left for history, we still don't want history
-        // to grow too big. Current models degrade with large contexts (Though this might change).
-        char *history = truncate_history(state.iteration_history, effective_history_limit);
+        // Use the last iteration's history (if any)
+        char *history = state.iteration_history ? state.iteration_history : "(none)";
         
         // Build prompt using the dedicated function
         PromptBuildArgs prompt_args = {
@@ -508,14 +435,8 @@ AgentResult run_agent(AgentArgs *args) {
             }
         }
         
-        // Append this iteration to history
-        char *iteration_entry = string_builder_finalize(&iteration_sb);
-        if (state.iteration_history) {
-            char *new_history = gc_asprintf("%s\n%s", state.iteration_history, iteration_entry);
-            state.iteration_history = new_history;
-        } else {
-            state.iteration_history = iteration_entry;
-        }
+        // Replace history with just this iteration
+        state.iteration_history = string_builder_finalize(&iteration_sb);
     }
     
     if (state.done) {

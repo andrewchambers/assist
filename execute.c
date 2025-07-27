@@ -264,10 +264,10 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     
     // Create symlinks for agent commands
     const char *commands[] = {
-        "agent-focus", "agent-unfocus", "agent-cd", "agent-abort", "agent-done"
+        "agent-focus", "agent-cd", "agent-abort", "agent-done"
     };
     
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
         char *link_path = gc_asprintf("%s/bin/%s", temp_dir, commands[i]);
         if (symlink(g_executable_path, link_path) != 0) {
             remove_directory(temp_dir);

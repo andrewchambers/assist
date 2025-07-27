@@ -66,7 +66,7 @@ static int cancellation_callback(void *user_data) {
     return interrupt_received;
 }
 
-// Handle agent commands (agent-focus, agent-unfocus, etc.)
+// Handle agent commands (agent-focus, agent-cd, etc.)
 int agent_command_main(const char *cmd, int argc, char *argv[]) {
     const char *state_file = getenv("MINICODER_STATE_FILE");
     if (!state_file) {
@@ -90,12 +90,15 @@ int agent_command_main(const char *cmd, int argc, char *argv[]) {
     
     // Handle different commands
     if (strcmp(cmd, "agent-focus") == 0) {
-        // Add files to focused list
+        // Replace entire focused list
         cJSON *focused = cJSON_GetObjectItem(root, "focused_files");
-        if (!focused || !cJSON_IsArray(focused)) {
-            focused = cJSON_CreateArray();
-            cJSON_AddItemToObject(root, "focused_files", focused);
+        if (focused) {
+            cJSON_DeleteItemFromObject(root, "focused_files");
         }
+        
+        // Create new array with the specified files
+        focused = cJSON_CreateArray();
+        cJSON_AddItemToObject(root, "focused_files", focused);
         
         for (int i = 1; i < argc; i++) {
             // Get absolute path
@@ -108,48 +111,13 @@ int agent_command_main(const char *cmd, int argc, char *argv[]) {
                 abs_path = gc_abs;
             }
             
-            // Check if already in list
-            bool found = false;
-            int size = cJSON_GetArraySize(focused);
-            for (int j = 0; j < size; j++) {
-                cJSON *item = cJSON_GetArrayItem(focused, j);
-                if (item && cJSON_IsString(item) && strcmp(cJSON_GetStringValue(item), abs_path) == 0) {
-                    found = true;
-                    break;
-                }
-            }
-            
-            if (!found) {
-                cJSON_AddItemToArray(focused, cJSON_CreateString(abs_path));
-                printf("Focused on: %s\n", abs_path);
-            }
+            cJSON_AddItemToArray(focused, cJSON_CreateString(abs_path));
+            printf("Focused on: %s\n", abs_path);
         }
-    }
-    else if (strcmp(cmd, "agent-unfocus") == 0) {
-        // Remove files from focused list
-        cJSON *focused = cJSON_GetObjectItem(root, "focused_files");
-        if (focused && cJSON_IsArray(focused)) {
-            for (int i = 1; i < argc; i++) {
-                char *abs_path = realpath(argv[i], NULL);
-                if (!abs_path) {
-                    abs_path = gc_strdup(argv[i]);
-                } else {
-                    char *gc_abs = gc_strdup(abs_path);
-                    free(abs_path);
-                    abs_path = gc_abs;
-                }
-                
-                // Find and remove from array
-                int size = cJSON_GetArraySize(focused);
-                for (int j = 0; j < size; j++) {
-                    cJSON *item = cJSON_GetArrayItem(focused, j);
-                    if (item && cJSON_IsString(item) && strcmp(cJSON_GetStringValue(item), abs_path) == 0) {
-                        cJSON_DeleteItemFromArray(focused, j);
-                        printf("Unfocused: %s\n", abs_path);
-                        break;
-                    }
-                }
-            }
+        
+        if (argc == 1) {
+            // No files specified, clear the focus
+            printf("Cleared all focused files\n");
         }
     }
     else if (strcmp(cmd, "agent-cd") == 0) {
