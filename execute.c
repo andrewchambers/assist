@@ -3,6 +3,7 @@
 #include "gc.h"
 #include "string.h"
 #include "execute.h"
+#include "agent_commands.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

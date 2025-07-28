@@ -79,14 +79,10 @@ static bool mark_from_ptr(gc_state *gc, void *ptr) {
 
 // ---- Stack scanning --------------------------------------------------------
 
-static void* get_stack_pointer(void) {
-    void *sp;
-    volatile int x; sp = (void*)&x;
-    return sp;
-}
-
 static void scan_stack(gc_state *gc) {
-    void *top = get_stack_pointer(), *bot = gc->stack_bottom;
+    void *top;
+    GC_GET_STACK_POINTER(&top);
+    void *bot = gc->stack_bottom;
     if (top > bot) { void *t = top; top = bot; bot = t; }
     scan_range_for_ptrs(gc, top, bot);
 }

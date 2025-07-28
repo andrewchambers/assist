@@ -42,7 +42,7 @@ static model_config_t *create_default_models(void) {
     
     if (openrouter_key) {
         // Use OpenRouter models
-        config->count = 6;
+        config->count = 7;
         config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
         
         // Default model is first
@@ -94,6 +94,14 @@ static model_config_t *create_default_models(void) {
         config->models[5].config.openai.api_key = gc_strdup(openrouter_key);
         config->models[5].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
+
+        config->models[6].name = gc_strdup("qwen3");
+        config->models[6].type = MODEL_TYPE_OPENAI;
+        config->models[6].max_context_bytes = 524288;  // ~131K tokens * 4 bytes/token
+        config->models[6].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
+        config->models[6].config.openai.model = gc_strdup("qwen/qwen3-235b-a22b-thinking-2507");
+        config->models[6].config.openai.api_key = gc_strdup(openrouter_key);
+        config->models[6].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
     } else {
         // Use OpenAI models as fallback

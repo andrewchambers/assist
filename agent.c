@@ -30,11 +30,6 @@ char* extract_exec_script(const char *text) {
         // Move past "exec"
         const char *after_exec = exec_pos + 4;
         
-        // Skip whitespace (spaces and tabs)
-        while (*after_exec == ' ' || *after_exec == '\t') {
-            after_exec++;
-        }
-        
         // Check for newline
         if (*after_exec != '\n') {
             p = exec_pos + 1;
@@ -45,14 +40,15 @@ char* extract_exec_script(const char *text) {
         // Look for delimiter (backticks or tildes)
         char delimiter_char = '\0';
         int delimiter_count = 0;
-        const char *delimiter_start = after_exec;
+        const char *fence_start = after_exec;
         
         // Count consecutive backticks or tildes
-        if (*delimiter_start == '`' || *delimiter_start == '~') {
-            delimiter_char = *delimiter_start;
-            while (*delimiter_start == delimiter_char) {
+        if (*fence_start == '`' || *fence_start == '~') {
+            delimiter_char = *fence_start;
+            const char *p_delim = fence_start;
+            while (*p_delim == delimiter_char) {
                 delimiter_count++;
-                delimiter_start++;
+                p_delim++;
             }
         }
         
@@ -62,15 +58,20 @@ char* extract_exec_script(const char *text) {
             continue;
         }
         
-        // Check for newline after delimiter
-        if (*delimiter_start != '\n') {
+        // Find the end of the opening fence line (skip past delimiter and any language specifier)
+        const char *line_end = fence_start + delimiter_count;
+        while (*line_end && *line_end != '\n') {
+            line_end++;
+        }
+        
+        // Check for newline after fence
+        if (*line_end != '\n') {
             p = exec_pos + 1;
             continue;
         }
-        delimiter_start++; // Move past the newline
         
-        // Find the closing delimiter (must be same char type, same count or more, on its own line)
-        const char *start_content = delimiter_start;
+        // Content starts after the newline
+        const char *start_content = line_end + 1;
         const char *end_content = NULL;
         const char *search_pos = start_content;
         
@@ -190,52 +191,73 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_init(&sb, &gc, 4096);
     
     // Add the prompt template content
-    string_builder_append_str(&sb, "You are part of an agentic ai system that iterates while trying to perform a task.\n");
-    string_builder_append_str(&sb, "You interact with the system by outputting scripts to be run in a specific format.\n\n");
+    string_builder_append_str(&sb, "You are an AI agent that is part of an outer execution loop.\n");
+    string_builder_append_str(&sb, "Your goal is to execute one shell script per iteration in order to accomplish a user task, or answer a user question.\n\n");
     
-    string_builder_append_str(&sb, "You may output a shell script in the following format for execution:\n\n");
+    string_builder_append_str(&sb, "## HOW TO EXECUTE SCRIPTS\n\n");
+    string_builder_append_str(&sb, "Output a single shell script in this format:\n\n");
     string_builder_append_str(&sb, "exec\n```\n");
-    string_builder_append_str(&sb, "# Your posix shell script here\n");
+    string_builder_append_str(&sb, "# Your POSIX shell script here\n");
     string_builder_append_str(&sb, "```\n\n");
+    string_builder_append_str(&sb, "Scripts run with -e (exit on error) and -x (debug trace) flags set.\n");
+    string_builder_append_str(&sb, "Code blocks support markdown delimiters (3+ ` or ~). Adjust if your script contains backticks.\n\n");
     
-    string_builder_append_str(&sb, "The code blocks support markdown-style delimiters (3+ ` or ~).\n");
-    string_builder_append_str(&sb, "You *must* adjust your delimiters if your script contains backticks.\n\n");
+    string_builder_append_str(&sb, "## AGENT COMMANDS\n\n");
+    string_builder_append_str(&sb, "Special commands that control the agent loop (use within exec blocks):\n\n");
+    string_builder_append_str(&sb, "- agent-focus FILE1 FILE2...  # Replace focused files (shown in every iteration)\n");
+    string_builder_append_str(&sb, "- agent-focus                 # Clear all focused files\n");
+    string_builder_append_str(&sb, "- agent-cd PATH              # Change working directory permanently (persists across iterations)\n");
+    string_builder_append_str(&sb, "- agent-abort                # Stop with failure (pipe message: echo \"reason\" | agent-abort)\n");
+    string_builder_append_str(&sb, "- agent-done                 # Complete successfully (pipe message: echo \"summary\" | agent-done)\n\n");
     
-    string_builder_append_str(&sb, "Example:\n\n");
-    string_builder_append_str(&sb, "exec\n```\n");
-    string_builder_append_str(&sb, "echo \"Task completed successfully!\" | agent-done\n");
-    string_builder_append_str(&sb, "```\n\n");
+    string_builder_append_str(&sb, "## ITERATION STRATEGY\n\n");
+    string_builder_append_str(&sb, "- Break complex tasks into smaller, verifiable steps\n");
+    string_builder_append_str(&sb, "- Try to accomplish steps each interation in logical chunks\n");
+    string_builder_append_str(&sb, "- Verify outputs before proceeding (verify success in the next iteration)\n");
+    string_builder_append_str(&sb, "- Track your own progress via notes (You only see the output of the last iteration)\n");
     
-    string_builder_append_str(&sb, "The output of this script execution will be given back to you at the next iteration of this loop.\n");
-    string_builder_append_str(&sb, "Each script starts in the agent's working directory (shown in CURRENT STATE below).\n");
-    string_builder_append_str(&sb, "The script starts with -e set and therefore exits immediately if any command fails.\n");
-    string_builder_append_str(&sb, "The script starts with -x set by default so you can debug any issues more easily.\n\n");
+    string_builder_append_str(&sb, "## STATE MANAGEMENT\n\n");
+    string_builder_append_str(&sb, "What persists between iterations:\n");
+    string_builder_append_str(&sb, "- Working directory (via agent-cd)\n");
+    string_builder_append_str(&sb, "- Focused files list (via agent-focus)\n");
+    string_builder_append_str(&sb, "- Your own output and the script execution from the previous iteration\n\n");
+    string_builder_append_str(&sb, "What does NOT persist:\n");
+    string_builder_append_str(&sb, "- Shell variables\n");
+    string_builder_append_str(&sb, "- Current directory from 'cd' command\n");
+    string_builder_append_str(&sb, "- Output from older iteration\n\n");
     
-    string_builder_append_str(&sb, "The following shell builtin commands have been added to help you control the agent loop.\n\n");
-    string_builder_append_str(&sb, "- agent-focus PATH...\n");
-    string_builder_append_str(&sb, "  Replace the focused file list with the specified files. Files will appear in future iterations automatically.\n");
-    string_builder_append_str(&sb, "  Use without arguments to clear all focused files.\n");
-    string_builder_append_str(&sb, "- agent-cd PATH\n");
-    string_builder_append_str(&sb, "  Change the agent's working directory for all future iterations. This persists across iterations.\n");
-    string_builder_append_str(&sb, "  Note: This is different from 'cd' which only affects the current script execution.\n");
-    string_builder_append_str(&sb, "- agent-abort\n");
-    string_builder_append_str(&sb, "   Abort the agent loop as failed. Reads an optional message from stdin or answer for the user.\n");
-    string_builder_append_str(&sb, "- agent-done\n");
-    string_builder_append_str(&sb, "   Signal that the goal is complete and stop iteration. Reads an optional message from stdin for the user.\n\n");
+    string_builder_append_str(&sb, "## PROGRESS TRACKING\n\n");
+    string_builder_append_str(&sb, "Maintain a structured task list with clear status markers:\n\n");
+    string_builder_append_str(&sb, "Task Breakdown:\n");
+    string_builder_append_str(&sb, "- [ ] Main task\n");
+    string_builder_append_str(&sb, "  - [✓] Completed subtask (verified in previous iteration)\n");
+    string_builder_append_str(&sb, "  - [→] Current subtask (what this script will do)\n");
+    string_builder_append_str(&sb, "  - [ ] Pending subtask (for future iterations)\n");
+    string_builder_append_str(&sb, "  - [✗] Failed subtask (needs retry or different approach)\n\n");
     
-    string_builder_append_str(&sb, "You should use these agent commands from within exec blocks.\n\n");
+    string_builder_append_str(&sb, "CRITICAL: Only mark tasks [✓] complete AFTER seeing successful output!\n\n");
     
-    string_builder_append_str(&sb, "You have limited memory. You should explain your reasoning and plans\n");
-    string_builder_append_str(&sb, "clearly so that future iterations can understand the context and continue the work.\n\n");
-    string_builder_append_str(&sb, "In your output you should clearly explain:\n");
-    string_builder_append_str(&sb, "- What you have accomplished so far\n");
-    string_builder_append_str(&sb, "- What the script you're about to run will do\n");
-    string_builder_append_str(&sb, "- What still needs to be done in future iterations\n\n");
-    string_builder_append_str(&sb, "A nested and bulleted todo list with [done] markers would be a good way to track your progress.\n");
+    string_builder_append_str(&sb, "## ERROR HANDLING\n\n");
+    string_builder_append_str(&sb, "When scripts fail:\n");
+    string_builder_append_str(&sb, "- Examine the -x trace output to identify the failing command\n");
+    string_builder_append_str(&sb, "- Check exit codes and error messages\n");
+    string_builder_append_str(&sb, "- Consider aborting with agent-abort if the task cannot proceed\n\n");
     
-    string_builder_append_str(&sb, "Only the last iteration (including your response, exec block and command output) will be shown below.\n\n");
+    string_builder_append_str(&sb, "## BEST PRACTICES\n\n");
+    string_builder_append_str(&sb, "- Always explain what you learned from the previous output\n");
+    string_builder_append_str(&sb, "- State clearly what your script will attempt\n");
+    string_builder_append_str(&sb, "- Focus files you'll need to reference in future iterations\n");
+    string_builder_append_str(&sb, "- Preserve important information for the next iteration\n\n");
     
-    string_builder_append_str(&sb, "You must exec the `agent-done` command to end iteration. Use the message to answer questions or explain what was achieved.\n\n");
+    string_builder_append_str(&sb, "REMEMBER: In each iteration, you see:\n");
+    string_builder_append_str(&sb, "1. Your own output (notes, task list, etc...) from the previous iteration\n");
+    string_builder_append_str(&sb, "2. The exec block you wrote\n");
+    string_builder_append_str(&sb, "3. The script's execution output (stdout/stderr)\n\n");
+    string_builder_append_str(&sb, "You are reading your own notes AND seeing what happened when your script ran.\n");
+    string_builder_append_str(&sb, "Design your output to help your future self understand the context and continue the work!\n\n");
+    
+    string_builder_append_str(&sb, "You should only run the `agent-done` command when the original user request is satisfied.\n");
+    string_builder_append_str(&sb, "Supply a message agent-done to answer the user questions or explain what was achieved.\n\n");
     
     string_builder_append_str(&sb, "--- CURRENT STATE ---\n\n");
     

@@ -45,6 +45,34 @@ typedef struct gc_root {
 // Initial root array size
 #define GC_INITIAL_ROOTS 16
 
+// Platform-specific macro to get stack pointer
+// Usage: void *sp; GC_GET_STACK_POINTER(&sp);
+#if defined(__x86_64__) || defined(__amd64__)
+    #define GC_GET_STACK_POINTER(ptr) \
+        __asm__ volatile ("movq %%rsp, %0" : "=r"(*(ptr)))
+#elif defined(__i386__)
+    #define GC_GET_STACK_POINTER(ptr) \
+        __asm__ volatile ("movl %%esp, %0" : "=r"(*(ptr)))
+#elif defined(__aarch64__)
+    #define GC_GET_STACK_POINTER(ptr) \
+        __asm__ volatile ("mov %0, sp" : "=r"(*(ptr)))
+#elif defined(__arm__)
+    #define GC_GET_STACK_POINTER(ptr) \
+        __asm__ volatile ("mov %0, sp" : "=r"(*(ptr)))
+#elif defined(__riscv)
+    #define GC_GET_STACK_POINTER(ptr) \
+        __asm__ volatile ("mv %0, sp" : "=r"(*(ptr)))
+#elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)
+    #define GC_GET_STACK_POINTER(ptr) \
+        __asm__ volatile ("mr %0, 1" : "=r"(*(ptr)))
+#else
+    // Fallback to portable method
+    #define GC_GET_STACK_POINTER(ptr) do { \
+        volatile int x; \
+        *(ptr) = (void*)&x; \
+    } while(0)
+#endif
+
 // GC state
 typedef struct gc_state {
     gc_entry *hash_table;       // Hash table of allocations (array)

@@ -19,9 +19,6 @@
 
 extern gc_state gc;
 
-// Global buffer to store the executable path
-char g_executable_path[PATH_MAX * 2] = {0};
-
 void die(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -30,80 +27,6 @@ void die(const char *fmt, ...) {
     fprintf(stderr, "\n");
     va_end(args);
     exit(1);
-}
-
-void self_exec_path_init(const char *argv0) {
-    if (!argv0) {
-        die("argv0 is required!\n");
-    }
-    
-    // First try /proc/self/exe (Linux)
-    char proc_path[PATH_MAX];
-    ssize_t len = readlink("/proc/self/exe", proc_path, sizeof(proc_path) - 1);
-    if (len > 0) {
-        proc_path[len] = '\0';
-        strncpy(g_executable_path, proc_path, PATH_MAX * 2 - 1);
-        g_executable_path[PATH_MAX * 2 - 1] = '\0';
-        return;
-    }
-   
-    // Otherwise, resolve argv[0] to absolute path
-    if (argv0[0] == '/') {
-        // Already absolute
-        strncpy(g_executable_path, argv0, PATH_MAX * 2 - 1);
-        g_executable_path[PATH_MAX * 2 - 1] = '\0';
-    } else if (strchr(argv0, '/')) {
-        // Relative path with directory component
-        char cwd[PATH_MAX];
-        if (getcwd(cwd, sizeof(cwd))) {
-            size_t cwd_len = strlen(cwd);
-            size_t argv0_len = strlen(argv0);
-            if (cwd_len + argv0_len + 1 < PATH_MAX * 2) {
-                snprintf(g_executable_path, PATH_MAX * 2, "%s/%s", cwd, argv0);
-            } else {
-                // Path would be too long, just use argv0 as-is
-                strncpy(g_executable_path, argv0, PATH_MAX - 1);
-                g_executable_path[PATH_MAX - 1] = '\0';
-            }
-        }
-    } else {
-        // Just a command name, search PATH
-        const char *path_env = getenv("PATH");
-        if (!path_env) {
-            // Fallback to default PATH if not set
-            path_env = "/usr/local/bin:/usr/bin:/bin";
-        }
-        
-        // Make a copy of PATH since strtok modifies the string
-        char *path_copy = gc_strdup(path_env);
-        
-        char *dir = strtok(path_copy, ":");
-        bool found = false;
-        
-        while (dir != NULL) {
-            char candidate[PATH_MAX];
-            snprintf(candidate, PATH_MAX, "%s/%s", dir, argv0);
-            
-            // Check if file exists and is executable
-            if (access(candidate, X_OK) == 0) {
-                strncpy(g_executable_path, candidate, PATH_MAX * 2 - 1);
-                g_executable_path[PATH_MAX * 2 - 1] = '\0';
-                found = true;
-                break;
-            }
-            
-            dir = strtok(NULL, ":");
-        }
-        
-        if (!found) {
-            die("Failed to find executable '%s' in PATH\n", argv0);
-        }
-    }
-    
-    // Verify that we actually found a valid executable path
-    if (!g_executable_path[0]) {
-        die("Failed to determine executable path\n");
-    }
 }
 
 

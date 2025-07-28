@@ -11,6 +11,7 @@
 #include "string.h"
 #include "agent.h"
 #include "model.h"
+#include "agent_commands.h"
 
 gc_state gc;
 
@@ -41,141 +42,12 @@ static void signal_handler(int sig) {
     fprintf(stderr, "\nReceived interrupt signal. Shutting down...\n");
 }
 
-// Read message from stdin (for agent-done and agent-abort)
-static char* read_message_from_stdin() {
-    string_builder_t sb;
-    string_builder_init(&sb, &gc, 1024);
-    
-    char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), stdin) != NULL) {
-        string_builder_append_str(&sb, buffer);
-    }
-    
-    // Trim trailing newline if present
-    char *msg = string_builder_finalize(&sb);
-    int len = strlen(msg);
-    if (len > 0 && msg[len-1] == '\n') {
-        msg[len-1] = '\0';
-    }
-    
-    return msg;
-}
 
 // Cancellation check callback for model
 static int cancellation_callback(void *user_data) {
     return interrupt_received;
 }
 
-// Handle agent commands (agent-focus, agent-cd, etc.)
-int agent_command_main(const char *cmd, int argc, char *argv[]) {
-    const char *state_file = getenv("MINICODER_STATE_FILE");
-    if (!state_file) {
-        fprintf(stderr, "Error: MINICODER_STATE_FILE environment variable not set\n");
-        return 1;
-    }
-    
-    // Read current state
-    char *error = NULL;
-    char *content = file_to_string(state_file, &error);
-    if (!content) {
-        fprintf(stderr, "Error reading state file: %s\n", error ? error : "Unknown error");
-        return 1;
-    }
-    
-    cJSON *root = cJSON_Parse(content);
-    if (!root) {
-        fprintf(stderr, "Error parsing state JSON\n");
-        return 1;
-    }
-    
-    // Handle different commands
-    if (strcmp(cmd, "agent-focus") == 0) {
-        // Replace entire focused list
-        cJSON *focused = cJSON_GetObjectItem(root, "focused_files");
-        if (focused) {
-            cJSON_DeleteItemFromObject(root, "focused_files");
-        }
-        
-        // Create new array with the specified files
-        focused = cJSON_CreateArray();
-        cJSON_AddItemToObject(root, "focused_files", focused);
-        
-        for (int i = 1; i < argc; i++) {
-            // Get absolute path
-            char *abs_path = realpath(argv[i], NULL);
-            if (!abs_path) {
-                abs_path = gc_strdup(argv[i]);
-            } else {
-                char *gc_abs = gc_strdup(abs_path);
-                free(abs_path);
-                abs_path = gc_abs;
-            }
-            
-            cJSON_AddItemToArray(focused, cJSON_CreateString(abs_path));
-            printf("Focused on: %s\n", abs_path);
-        }
-        
-        if (argc == 1) {
-            // No files specified, clear the focus
-            printf("Cleared all focused files\n");
-        }
-    }
-    else if (strcmp(cmd, "agent-cd") == 0) {
-        // Change working directory
-        if (argc < 2) {
-            fprintf(stderr, "Usage: agent-cd PATH\n");
-            return 1;
-        }
-        
-        char *abs_path = realpath(argv[1], NULL);
-        if (!abs_path) {
-            fprintf(stderr, "Error: Invalid directory path: %s\n", argv[1]);
-            return 1;
-        }
-        char *gc_abs = gc_strdup(abs_path);
-        free(abs_path);
-        
-        cJSON_DeleteItemFromObject(root, "working_dir");
-        cJSON_AddStringToObject(root, "working_dir", gc_abs);
-        printf("Changed directory to: %s\n", gc_abs);
-    }
-    else if (strcmp(cmd, "agent-done") == 0) {
-        // Mark as done
-        cJSON_AddBoolToObject(root, "done", cJSON_True);
-        
-        // Read message from stdin
-        char *message = read_message_from_stdin();
-        if (message && strlen(message) > 0) {
-            cJSON_AddStringToObject(root, "done_message", message);
-        }
-    }
-    else if (strcmp(cmd, "agent-abort") == 0) {
-        // Mark as aborted
-        cJSON_AddBoolToObject(root, "aborted", cJSON_True);
-        
-        // Read message from stdin
-        char *message = read_message_from_stdin();
-        if (message && strlen(message) > 0) {
-            cJSON_AddStringToObject(root, "abort_message", message);
-        }
-    }
-    else {
-        fprintf(stderr, "Unknown agent command: %s\n", cmd);
-        return 1;
-    }
-    
-    // Write updated state back
-    char *json_str = cJSON_PrintUnformatted(root);
-    FILE *f = fopen(state_file, "w");
-    if (!f) {
-        fprintf(stderr, "Error writing state file\n");
-        return 1;
-    }
-    fprintf(f, "%s", json_str);
-    fclose(f);
-    
-    return 0;
-}
 
 static void print_usage(const char *prog_name, model_config_t *model_config) {
     fprintf(stderr, "Usage: %s [options] <request>\n", prog_name);
@@ -361,8 +233,12 @@ int assist_main(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-    // Initialize the garbage collector
-    gc_init(&gc, &argc);
+    // Get stack pointer at the very start of main
+    void *stack_bottom;
+    GC_GET_STACK_POINTER(&stack_bottom);
+    
+    // Initialize the garbage collector with proper stack bottom
+    gc_init(&gc, stack_bottom);
     
     // Initialize cJSON to use gc memory management
     cJSON_Hooks hooks;
