@@ -21,7 +21,7 @@ It is designed around a few core ideas:
 ## Examples
 
 ```
-$ minicoder --focus '*.c' 'Can you fix the compile errors in this project?'
+$ minicoder --files '*.c' 'Can you fix the compile errors in this project?'
 ```
 
 ```
@@ -52,8 +52,8 @@ minicoder "Fix the bug in main.c"
 # Choose a specific model
 minicoder --model deepseek "Optimize this function"
 
-# Focus on specific files
-minicoder --focus 'src/*.js tests/*.js' "Add unit tests"
+# Include specific files
+minicoder --files 'src/*.js tests/*.js' "Add unit tests"
 ```
 
 ## User manuals

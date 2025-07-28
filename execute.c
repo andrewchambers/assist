@@ -265,7 +265,7 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     
     // Create symlinks for agent commands
     const char *commands[] = {
-        "agent-focus", "agent-cd", "agent-abort", "agent-done"
+        "agent-files", "agent-cd", "agent-abort", "agent-done"
     };
     
     for (int i = 0; i < 4; i++) {

@@ -204,8 +204,8 @@ static char* build_prompt(const PromptBuildArgs *args) {
     
     string_builder_append_str(&sb, "## AGENT COMMANDS\n\n");
     string_builder_append_str(&sb, "Special commands that control the agent loop (use within exec blocks):\n\n");
-    string_builder_append_str(&sb, "- agent-focus FILE1 FILE2...  # Replace focused files (shown in every iteration)\n");
-    string_builder_append_str(&sb, "- agent-focus                 # Clear all focused files\n");
+    string_builder_append_str(&sb, "- agent-files FILE1 FILE2...  # Replace focused files (shown in every iteration)\n");
+    string_builder_append_str(&sb, "- agent-files                 # Clear all focused files\n");
     string_builder_append_str(&sb, "- agent-cd PATH              # Change working directory permanently (persists across iterations)\n");
     string_builder_append_str(&sb, "- agent-abort                # Stop with failure (pipe message: echo \"reason\" | agent-abort)\n");
     string_builder_append_str(&sb, "- agent-done                 # Complete successfully (pipe message: echo \"summary\" | agent-done)\n\n");
@@ -219,7 +219,7 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "## STATE MANAGEMENT\n\n");
     string_builder_append_str(&sb, "What persists between iterations:\n");
     string_builder_append_str(&sb, "- Working directory (via agent-cd)\n");
-    string_builder_append_str(&sb, "- Focused files list (via agent-focus)\n");
+    string_builder_append_str(&sb, "- Focused files list (via agent-files)\n");
     string_builder_append_str(&sb, "- Your own output and the script execution from the previous iteration\n\n");
     string_builder_append_str(&sb, "What does NOT persist:\n");
     string_builder_append_str(&sb, "- Shell variables\n");

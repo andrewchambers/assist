@@ -104,7 +104,7 @@ static char* read_message_from_stdin() {
     return msg;
 }
 
-// Handle agent commands (agent-focus, agent-cd, etc.)
+// Handle agent commands (agent-files, agent-cd, etc.)
 int agent_command_main(const char *cmd, int argc, char *argv[]) {
     const char *state_file = getenv("MINICODER_STATE_FILE");
     if (!state_file) {
@@ -127,7 +127,7 @@ int agent_command_main(const char *cmd, int argc, char *argv[]) {
     }
     
     // Handle different commands
-    if (strcmp(cmd, "agent-focus") == 0) {
+    if (strcmp(cmd, "agent-files") == 0) {
         // Replace entire focused list
         cJSON *focused = cJSON_GetObjectItem(root, "focused_files");
         if (focused) {

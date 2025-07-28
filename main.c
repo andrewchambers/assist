@@ -29,7 +29,7 @@ static void cjson_free_wrapper(void *ptr) {
     // gc doesn't have explicit free, do nothing
 }
 
-// Default files to focus on if none specified
+// Default files to include if none specified
 
 // Global flag for signal handling
 static volatile sig_atomic_t interrupt_received = 0;
@@ -68,7 +68,7 @@ static void print_usage(const char *prog_name, model_config_t *model_config) {
         fprintf(stderr, "  --model MODEL              Model to use\n");
     }
     
-    fprintf(stderr, "  --focus FILES              Files or globs to focus on initially (space-separated)\n");
+    fprintf(stderr, "  --files FILES              Files or globs to include initially (space-separated)\n");
     fprintf(stderr, "  --help                     Show this help message\n");
     fprintf(stderr, "  --version                  Show version information\n");
     fprintf(stderr, "\n");
@@ -88,7 +88,7 @@ int assist_main(int argc, char *argv[]) {
     bool debug = false;
     int max_iterations = 50;
     char *model = NULL;
-    char *focus_arg = NULL;  // Store the --focus argument
+    char *files_arg = NULL;  // Store the --files argument
     
     // Parse command line arguments
     int i = 1;
@@ -114,12 +114,12 @@ int assist_main(int argc, char *argv[]) {
             }
             model = argv[i + 1];
             i += 2;
-        } else if (strcmp(argv[i], "--focus") == 0) {
+        } else if (strcmp(argv[i], "--files") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Error: --focus requires an argument\n");
+                fprintf(stderr, "Error: --files requires an argument\n");
                 return 1;
             }
-            focus_arg = argv[i + 1];
+            files_arg = argv[i + 1];
             i += 2;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0], model_config);
@@ -166,14 +166,14 @@ int assist_main(int argc, char *argv[]) {
     }
     char *user_request = string_builder_finalize(&sb);
     
-    // Process focus files
+    // Process files to include
     char **focus_files = NULL;
     int focus_count = 0;
     
-    // Only use focus if explicitly provided
-    if (focus_arg) {
+    // Only use files if explicitly provided
+    if (files_arg) {
         expand_globs_t exp_result;
-        int ret = expand_globs(focus_arg, &exp_result);
+        int ret = expand_globs(files_arg, &exp_result);
         if (ret == 0) {
             // Allocate array for expanded files
             focus_files = gc_malloc(&gc, exp_result.we_wordc * sizeof(char*));

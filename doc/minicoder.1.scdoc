@@ -25,8 +25,8 @@ The assistant can read files, execute shell commands, track changes, and perform
 *--model* _MODEL_
 	Specify which AI model to use. Overrides the MINICODER_MODEL environment variable. If neither is specified, the first available model from the configuration is used.
 
-*--focus* _FILES_
-	Files or glob patterns to focus on initially (space-separated).
+*--files* _FILES_
+	Files or glob patterns to include initially (space-separated).
 
 *--help*, *-h*
 	Display help message and exit.
@@ -73,8 +73,8 @@ Request help with a coding task:
 Use a specific model with debug output:
 	$ minicoder --model gemini --debug "Add error handling to the parser"
 
-Focus on specific files for the task:
-	$ minicoder --focus "src/*.c src/*.h" "Refactor the authentication module"
+Include specific files for the task:
+	$ minicoder --files "src/*.c src/*.h" "Refactor the authentication module"
 
 Use a specific model with reasoning capabilities:
 	$ minicoder --model o3 "Optimize the database queries"
