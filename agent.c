@@ -234,6 +234,7 @@ typedef struct {
     bool reasoning_header_shown;
     bool response_header_shown;
     bool spinner_stopped;
+    char last_char;  // Track last character output
 } OutputContext;
 
 // Arguments for prompt building
@@ -349,16 +350,23 @@ static void output_callback(const char *chunk, size_t chunk_len, model_chunk_typ
         if (!ctx->reasoning_header_shown) {
             fprintf(ctx->output, "\n");
             ctx->reasoning_header_shown = true;
+            ctx->last_char = '\n';
         }
         
         // Write the reasoning chunk
         fwrite(chunk, 1, chunk_len, ctx->output);
         fflush(ctx->output);
+        
+        // Track last character
+        if (chunk_len > 0) {
+            ctx->last_char = chunk[chunk_len - 1];
+        }
     } else if (chunk_type == CHUNK_TYPE_CONTENT && chunk_len > 0) {
-        // Add newline when transitioning from reasoning to content
+        // Add newline when transitioning from reasoning to content only if reasoning didn't end with one
         if (!ctx->response_header_shown) {
-            if (ctx->reasoning_header_shown) {
+            if (ctx->reasoning_header_shown && ctx->last_char != '\n') {
                 fprintf(ctx->output, "\n");
+                ctx->last_char = '\n';
             }
             ctx->response_header_shown = true;
         }
@@ -366,6 +374,11 @@ static void output_callback(const char *chunk, size_t chunk_len, model_chunk_typ
         // Write the content chunk to output
         fwrite(chunk, 1, chunk_len, ctx->output);
         fflush(ctx->output);
+        
+        // Track last character
+        if (chunk_len > 0) {
+            ctx->last_char = chunk[chunk_len - 1];
+        }
     }
 }
 
@@ -488,7 +501,13 @@ AgentResult run_agent(AgentArgs *args) {
         char *prompt = build_prompt(&prompt_args);
         
         // Print and build the iteration header
-        const char *iteration_header = gc_asprintf("\n=== Iteration %d ===\n", state.iteration);
+        // Only add newline before header if it's not the first iteration
+        const char *iteration_header;
+        if (state.iteration > 1) {
+            iteration_header = gc_asprintf("\n=== Iteration %d ===\n", state.iteration);
+        } else {
+            iteration_header = gc_asprintf("=== Iteration %d ===\n", state.iteration);
+        }
         fprintf(args->output, "%s", iteration_header);
         string_builder_append_str(&iteration_sb, iteration_header);
         
@@ -530,8 +549,8 @@ AgentResult run_agent(AgentArgs *args) {
         // Start spinner while waiting for model
         start_spinner("Thinking...");
 
-        fprintf(args->output, "\nAssistant:\n");
-        string_builder_append_str(&iteration_sb, "\nAssistant:\n");
+        fprintf(args->output, "Assistant:\n");
+        string_builder_append_str(&iteration_sb, "Assistant:\n");
         
         char *response = model_completion(model, prompt, &options, &error);
         
@@ -543,14 +562,24 @@ AgentResult run_agent(AgentArgs *args) {
             return AGENT_RESULT_ERROR;
         }
         
+        // Ensure model output ends with a newline
+        if (output_ctx.last_char != '\n' && output_ctx.last_char != '\0') {
+            fprintf(args->output, "\n");
+        }
+        
         // Add to history (the response was already streamed to user)
         string_builder_append_str(&iteration_sb, response);
-        string_builder_append_str(&iteration_sb, "\n");
+        
+        // Ensure history also ends with newline
+        size_t response_len = strlen(response);
+        if (response_len > 0 && response[response_len - 1] != '\n') {
+            string_builder_append_str(&iteration_sb, "\n");
+        }
         
         // Extract and execute script if present
         char *exec_script = extract_exec_script(response);
         if (exec_script) {
-            const char *executing_message = "\nExecuting agent script:\n";
+            const char *executing_message = "Executing agent script:\n";
             fprintf(args->output, "%s", executing_message);
             string_builder_append_str(&iteration_sb, executing_message);
             
@@ -568,15 +597,15 @@ AgentResult run_agent(AgentArgs *args) {
     }
     
     if (state.done) {
-        fprintf(args->output, "\n=== Success ===\n\n");
+        fprintf(args->output, "\n=== Success ===\n");
         if (state.done_message && strlen(state.done_message) > 0) {
-            fprintf(args->output, "%s\n", state.done_message);
+            fprintf(args->output, "\n%s\n", state.done_message);
         }
         return AGENT_RESULT_SUCCESS;
     } else if (state.aborted) {
-        fprintf(args->output, "\n=== Abort ===\n\n");
+        fprintf(args->output, "\n=== Abort ===\n");
         if (state.abort_message && strlen(state.abort_message) > 0) {
-            fprintf(args->output, "%s\n", state.abort_message);
+            fprintf(args->output, "\n%s\n", state.abort_message);
         }
         return AGENT_RESULT_ABORTED;
     } else {
