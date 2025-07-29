@@ -74,7 +74,7 @@ static void print_usage(const char *prog_name, model_config_t *model_config) {
     fprintf(stderr, "\n");
 }
 
-int assist_main(int argc, char *argv[]) {
+static int assist_main(int argc, char *argv[]) {
 
     // Initialize model configuration early to show in usage
     char *error = NULL;

@@ -2,8 +2,10 @@
 #include "util.h"
 #include "spinner.h"
 #include "model.h"
+#include "execute.h"
 #include "gc.h"
 #include "string.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -13,7 +15,7 @@
 extern gc_state gc;
 
 
-char* extract_exec_script(const char *text) {
+static char* extract_exec_script(const char *text) {
     string_builder_t sb;
     string_builder_init(&sb, &gc, 1024);
     bool found_any = false;
@@ -128,7 +130,64 @@ char* extract_exec_script(const char *text) {
     return string_builder_finalize(&sb);
 }
 
-char* get_focused_content(char **files, int file_count) {
+// Helper function to truncate text to a maximum byte length
+static char* truncate_text(const char *text, size_t max_bytes, const char *truncation_note) {
+    if (!text || strlen(text) <= max_bytes) {
+        return gc_strdup(text ? text : "");
+    }
+    
+    // Find a good truncation point (not in the middle of a line)
+    size_t truncate_at = max_bytes;
+    while (truncate_at > 0 && text[truncate_at] != '\n') {
+        truncate_at--;
+    }
+    
+    // If we couldn't find a newline, just use the max
+    if (truncate_at == 0) {
+        truncate_at = max_bytes;
+    }
+    
+    string_builder_t sb;
+    string_builder_init(&sb, &gc, truncate_at + strlen(truncation_note) + 50);
+    
+    // Add the truncated text
+    char *truncated = gc_malloc(&gc, truncate_at + 1);
+    memcpy(truncated, text, truncate_at);
+    truncated[truncate_at] = '\0';
+    
+    string_builder_append_str(&sb, truncated);
+    string_builder_append_str(&sb, "\n\n");
+    string_builder_append_str(&sb, truncation_note);
+    
+    return string_builder_finalize(&sb);
+}
+
+// Helper function to truncate history if needed
+static char* truncate_history_if_needed(const char *history, size_t max_bytes) {
+    if (!history || strlen(history) <= max_bytes) {
+        return gc_strdup(history ? history : "(none)");
+    }
+    
+    // For history, we want to keep the end (most recent output)
+    size_t history_len = strlen(history);
+    const char *start = history + (history_len - max_bytes);
+    
+    // Find a good starting point (beginning of a line)
+    while (start < history + history_len && *start != '\n') {
+        start++;
+    }
+    if (*start == '\n') start++;
+    
+    string_builder_t sb;
+    string_builder_init(&sb, &gc, max_bytes + 100);
+    
+    string_builder_append_str(&sb, "[... previous iteration truncated to fit context limits ...]\n\n");
+    string_builder_append_str(&sb, start);
+    
+    return string_builder_finalize(&sb);
+}
+
+static char* get_focused_content(char **files, int file_count) {
     string_builder_t sb;
     string_builder_init(&sb, &gc, 1024);
     
@@ -301,7 +360,6 @@ static void output_callback(const char *chunk, size_t chunk_len, model_chunk_typ
             if (ctx->reasoning_header_shown) {
                 fprintf(ctx->output, "\n");
             }
-            fprintf(ctx->output, "\n");
             ctx->response_header_shown = true;
         }
         
@@ -376,14 +434,49 @@ AgentResult run_agent(AgentArgs *args) {
         string_builder_t iteration_sb;
         string_builder_init(&iteration_sb, &gc, 1024);
         
+        // Calculate available space for variable content
+        // Safety margin: Reserve 20% for token estimation variance
+        size_t max_context_bytes = model->max_context_bytes;
+        if (max_context_bytes == 0) {
+            // Default to 128K if model doesn't specify
+            max_context_bytes = 128 * 1024;
+        }
+        
+        size_t safety_margin = max_context_bytes * 20 / 100;
+        size_t available_bytes = max_context_bytes - system_prompt_size - safety_margin;
+        
+        // Allocate space for each component (focused files, history)
+        // Give 40% to focused files, 60% to history
+        size_t focused_files_budget = available_bytes * 40 / 100;
+        size_t initial_history_budget = available_bytes * 60 / 100;
+        
+        // Get focused files content
+        char *focused_files_full = "(none)";
         char *focused_files = "(none)";
+        size_t focused_files_actual_size = 0;
+        
         if (state.focused_files_count > 0) {
-            focused_files = get_focused_content(state.focused_files, 
-                                              state.focused_files_count);
+            focused_files_full = get_focused_content(state.focused_files, 
+                                                    state.focused_files_count);
+            focused_files_actual_size = strlen(focused_files_full);
+            
+            if (focused_files_actual_size > focused_files_budget) {
+                focused_files = truncate_text(focused_files_full, focused_files_budget,
+                    "[NOTE: Focused files were truncated to fit context limits. Consider focusing on fewer or smaller files.]");
+                focused_files_actual_size = focused_files_budget;
+            } else {
+                focused_files = focused_files_full;
+            }
+        } else {
+            focused_files_actual_size = strlen("(none)");
         }
 
-        // Use the last iteration's history (if any)
-        char *history = state.iteration_history ? state.iteration_history : "(none)";
+        // Extend history budget with unused focused files space
+        size_t unused_files_budget = focused_files_budget - focused_files_actual_size;
+        size_t history_budget = initial_history_budget + unused_files_budget;
+        
+        // Get history from previous iteration with truncation if needed
+        char *history = truncate_history_if_needed(state.prev_iteration, history_budget);
         
         // Build prompt using the dedicated function
         PromptBuildArgs prompt_args = {
@@ -394,9 +487,24 @@ AgentResult run_agent(AgentArgs *args) {
         };
         char *prompt = build_prompt(&prompt_args);
         
-        fprintf(args->output, "\n=== Iteration %d ===\n", state.iteration);
+        // Print and build the iteration header
+        const char *iteration_header = gc_asprintf("\n=== Iteration %d ===\n", state.iteration);
+        fprintf(args->output, "%s", iteration_header);
+        string_builder_append_str(&iteration_sb, iteration_header);
         
         if (args->debug) {
+            fprintf(args->output, "\n--- DEBUG: Context management ---\n");
+            fprintf(args->output, "Model context limit: %zu bytes\n", max_context_bytes);
+            fprintf(args->output, "Base prompt size: %zu bytes\n", system_prompt_size);
+            fprintf(args->output, "Available for content: %zu bytes\n", available_bytes);
+            fprintf(args->output, "Focused files size: %zu bytes (budget: %zu, used: %zu)\n", 
+                    strlen(focused_files_full), focused_files_budget, focused_files_actual_size);
+            
+            // Calculate previous iteration size
+            size_t prev_iteration_size = state.prev_iteration ? strlen(state.prev_iteration) : 0;
+            fprintf(args->output, "Previous iteration size: %zu bytes (initial budget: %zu, extended budget: %zu)\n", 
+                    prev_iteration_size, initial_history_budget, history_budget);
+            
             fprintf(args->output, "\n--- DEBUG: Prompt sent to LLM ---\n");
             fprintf(args->output, "%s\n", prompt);
             fprintf(args->output, "--- END DEBUG ---\n");
@@ -421,6 +529,9 @@ AgentResult run_agent(AgentArgs *args) {
         
         // Start spinner while waiting for model
         start_spinner("Thinking...");
+
+        fprintf(args->output, "\nAssistant:\n");
+        string_builder_append_str(&iteration_sb, "\nAssistant:\n");
         
         char *response = model_completion(model, prompt, &options, &error);
         
@@ -432,33 +543,28 @@ AgentResult run_agent(AgentArgs *args) {
             return AGENT_RESULT_ERROR;
         }
         
-        // Add newline after streamed output
-        fprintf(args->output, "\n");
-        
-        // Build iteration entry header
-        string_builder_append_fmt(&iteration_sb, "=== Iteration %d ===\n\n", state.iteration);
-        
-        // Add the full model response
-        string_builder_append_str(&iteration_sb, "Assistant:\n");
+        // Add to history (the response was already streamed to user)
         string_builder_append_str(&iteration_sb, response);
         string_builder_append_str(&iteration_sb, "\n");
         
         // Extract and execute script if present
         char *exec_script = extract_exec_script(response);
         if (exec_script) {
-            fprintf(args->output, "\nExecuting...\n\n");
+            const char *executing_message = "\nExecuting agent script:\n";
+            fprintf(args->output, "%s", executing_message);
+            string_builder_append_str(&iteration_sb, executing_message);
             
             // Ensure cmd_state has the latest working directory
             cmd_state.working_dir = state.working_dir;
             
-            char *output = execute_script(exec_script, &state, &cmd_state);
-            if (output) {
-                string_builder_append_fmt(&iteration_sb, "\nScript output:\n%s\n", output);
+            char *script_output = execute_script(exec_script, &state, &cmd_state);
+            if (script_output) {
+                string_builder_append_str(&iteration_sb, script_output);
             }
         }
         
-        // Replace history with just this iteration
-        state.iteration_history = string_builder_finalize(&iteration_sb);
+        // Store this iteration for the next iteration to see
+        state.prev_iteration = string_builder_finalize(&iteration_sb);
     }
     
     if (state.done) {

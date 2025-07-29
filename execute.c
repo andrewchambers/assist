@@ -17,7 +17,7 @@
 
 extern gc_state gc;
 
-int exec_command(const char *command, char **out_output, int forward_output) {
+static int exec_command(const char *command, char **out_output, int forward_output) {
     if (!command) {
         return 0;  // No command, consider it a success
     }

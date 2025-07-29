@@ -16,15 +16,17 @@ typedef struct {
 typedef struct {
     char **focused_files;
     int focused_files_count;
-    char *iteration_history;  // Last iteration only
-    int iteration;
+    
+    // Previous iteration data (what the model sees from last run)
+    char *prev_iteration;  // Complete previous iteration (header + assistant + script output)
+    
+    int iteration;  // Current iteration number (1-based)
     bool done;
     char *done_message;
     bool aborted;
     char *abort_message;
     char *working_dir;
 } AgentState;
-
 
 typedef struct {
     char *user_request;
@@ -56,11 +58,6 @@ typedef enum {
 // Main function to run the agent
 AgentResult run_agent(AgentArgs *args);
 
-// Helper functions
-char* extract_exec_script(const char *text);
-char* get_focused_content(char **files, int file_count);
 
-// From shell.c
-char* execute_script(const char *script, AgentState *state, AgentCommandState *cmd_state);
 
 #endif // AGENT_H
