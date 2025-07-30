@@ -186,7 +186,7 @@ static int assist_main(int argc, char *argv[]) {
                     // Silently skip non-existent files
                     continue;
                 }
-                focus_files[focus_count++] = gc_strdup(exp_result.we_wordv[j]);
+                focus_files[focus_count++] = gc_strdup(&gc, exp_result.we_wordv[j]);
             }
             
             // No need to free - memory managed by gc

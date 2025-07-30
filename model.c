@@ -27,13 +27,13 @@ static model_config_t *create_default_models(void) {
         config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
         
         // Default to qwen3:32b over Ollama
-        config->models[0].name = gc_strdup("qwen3-32b");
+        config->models[0].name = gc_strdup(&gc, "qwen3-32b");
         config->models[0].type = MODEL_TYPE_OPENAI;
         config->models[0].max_context_bytes = 131072;  // ~32K tokens * 4 bytes/token
-        config->models[0].config.openai.endpoint = gc_strdup("http://localhost:11434/v1/chat/completions");
-        config->models[0].config.openai.model = gc_strdup("qwen3:32b");
-        config->models[0].config.openai.api_key = gc_strdup("ollama");  // Ollama doesn't require API key, but field is needed
-        config->models[0].config.openai.params = gc_strdup("{\"stream\":true}");
+        config->models[0].config.openai.endpoint = gc_strdup(&gc, "http://localhost:11434/v1/chat/completions");
+        config->models[0].config.openai.model = gc_strdup(&gc, "qwen3:32b");
+        config->models[0].config.openai.api_key = gc_strdup(&gc, "ollama");  // Ollama doesn't require API key, but field is needed
+        config->models[0].config.openai.params = gc_strdup(&gc, "{\"stream\":true}");
         
         return config;
     }
@@ -46,62 +46,62 @@ static model_config_t *create_default_models(void) {
         config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
         
         // Default model is first
-        config->models[0].name = gc_strdup("o3");
+        config->models[0].name = gc_strdup(&gc, "o3");
         config->models[0].type = MODEL_TYPE_OPENAI;
         config->models[0].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[0].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
-        config->models[0].config.openai.model = gc_strdup("openai/o3");
-        config->models[0].config.openai.api_key = gc_strdup(openrouter_key);
-        config->models[0].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[0].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
+        config->models[0].config.openai.model = gc_strdup(&gc, "openai/o3");
+        config->models[0].config.openai.api_key = gc_strdup(&gc, openrouter_key);
+        config->models[0].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
         
-        config->models[1].name = gc_strdup("o3-pro");
+        config->models[1].name = gc_strdup(&gc, "o3-pro");
         config->models[1].type = MODEL_TYPE_OPENAI;
         config->models[1].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[1].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
-        config->models[1].config.openai.model = gc_strdup("openai/o3-pro");
-        config->models[1].config.openai.api_key = gc_strdup(openrouter_key);
-        config->models[1].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[1].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
+        config->models[1].config.openai.model = gc_strdup(&gc, "openai/o3-pro");
+        config->models[1].config.openai.api_key = gc_strdup(&gc, openrouter_key);
+        config->models[1].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
-        config->models[2].name = gc_strdup("o4-mini");
+        config->models[2].name = gc_strdup(&gc, "o4-mini");
         config->models[2].type = MODEL_TYPE_OPENAI;
         config->models[2].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[2].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
-        config->models[2].config.openai.model = gc_strdup("openai/o4-mini");
-        config->models[2].config.openai.api_key = gc_strdup(openrouter_key);
-        config->models[2].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[2].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
+        config->models[2].config.openai.model = gc_strdup(&gc, "openai/o4-mini");
+        config->models[2].config.openai.api_key = gc_strdup(&gc, openrouter_key);
+        config->models[2].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
-        config->models[3].name = gc_strdup("grok-4");
+        config->models[3].name = gc_strdup(&gc, "grok-4");
         config->models[3].type = MODEL_TYPE_OPENAI;
         config->models[3].max_context_bytes = 524288;  // ~131K tokens * 4 bytes/token
-        config->models[3].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
-        config->models[3].config.openai.model = gc_strdup("x-ai/grok-4");
-        config->models[3].config.openai.api_key = gc_strdup(openrouter_key);
-        config->models[3].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[3].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
+        config->models[3].config.openai.model = gc_strdup(&gc, "x-ai/grok-4");
+        config->models[3].config.openai.api_key = gc_strdup(&gc, openrouter_key);
+        config->models[3].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
-        config->models[4].name = gc_strdup("gemini");
+        config->models[4].name = gc_strdup(&gc, "gemini");
         config->models[4].type = MODEL_TYPE_OPENAI;
         config->models[4].max_context_bytes = 2097152;  // ~524K tokens * 4 bytes/token
-        config->models[4].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
-        config->models[4].config.openai.model = gc_strdup("google/gemini-2.5-pro");
-        config->models[4].config.openai.api_key = gc_strdup(openrouter_key);
-        config->models[4].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[4].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
+        config->models[4].config.openai.model = gc_strdup(&gc, "google/gemini-2.5-pro");
+        config->models[4].config.openai.api_key = gc_strdup(&gc, openrouter_key);
+        config->models[4].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
-        config->models[5].name = gc_strdup("deepseek");
+        config->models[5].name = gc_strdup(&gc, "deepseek");
         config->models[5].type = MODEL_TYPE_OPENAI;
         config->models[5].max_context_bytes = 524288;  // ~131K tokens * 4 bytes/token
-        config->models[5].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
-        config->models[5].config.openai.model = gc_strdup("deepseek/deepseek-r1-0528");
-        config->models[5].config.openai.api_key = gc_strdup(openrouter_key);
-        config->models[5].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[5].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
+        config->models[5].config.openai.model = gc_strdup(&gc, "deepseek/deepseek-r1-0528");
+        config->models[5].config.openai.api_key = gc_strdup(&gc, openrouter_key);
+        config->models[5].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
 
-        config->models[6].name = gc_strdup("qwen3");
+        config->models[6].name = gc_strdup(&gc, "qwen3");
         config->models[6].type = MODEL_TYPE_OPENAI;
         config->models[6].max_context_bytes = 524288;  // ~131K tokens * 4 bytes/token
-        config->models[6].config.openai.endpoint = gc_strdup("https://openrouter.ai/api/v1/chat/completions");
-        config->models[6].config.openai.model = gc_strdup("qwen/qwen3-235b-a22b-thinking-2507");
-        config->models[6].config.openai.api_key = gc_strdup(openrouter_key);
-        config->models[6].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[6].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
+        config->models[6].config.openai.model = gc_strdup(&gc, "qwen/qwen3-235b-a22b-thinking-2507");
+        config->models[6].config.openai.api_key = gc_strdup(&gc, openrouter_key);
+        config->models[6].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
     } else {
         // Use OpenAI models as fallback
@@ -109,22 +109,22 @@ static model_config_t *create_default_models(void) {
         config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
         
         // o4-mini
-        config->models[0].name = gc_strdup("o4-mini");
+        config->models[0].name = gc_strdup(&gc, "o4-mini");
         config->models[0].type = MODEL_TYPE_OPENAI;
         config->models[0].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[0].config.openai.endpoint = gc_strdup("https://api.openai.com/v1/chat/completions");
-        config->models[0].config.openai.model = gc_strdup("o4-mini");
-        config->models[0].config.openai.api_key = gc_strdup(openai_key);
-        config->models[0].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[0].config.openai.endpoint = gc_strdup(&gc, "https://api.openai.com/v1/chat/completions");
+        config->models[0].config.openai.model = gc_strdup(&gc, "o4-mini");
+        config->models[0].config.openai.api_key = gc_strdup(&gc, openai_key);
+        config->models[0].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
         // o3 as default
-        config->models[1].name = gc_strdup("o3");
+        config->models[1].name = gc_strdup(&gc, "o3");
         config->models[1].type = MODEL_TYPE_OPENAI;
         config->models[1].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[1].config.openai.endpoint = gc_strdup("https://api.openai.com/v1/chat/completions");
-        config->models[1].config.openai.model = gc_strdup("o3");
-        config->models[1].config.openai.api_key = gc_strdup(openai_key);
-        config->models[1].config.openai.params = gc_strdup("{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+        config->models[1].config.openai.endpoint = gc_strdup(&gc, "https://api.openai.com/v1/chat/completions");
+        config->models[1].config.openai.model = gc_strdup(&gc, "o3");
+        config->models[1].config.openai.api_key = gc_strdup(&gc, openai_key);
+        config->models[1].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
 
     }
 
@@ -142,9 +142,9 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
         const char *json_error = cJSON_GetErrorPtr();
         if (error) {
             if (json_error) {
-                *error = gc_asprintf("JSON parse error: %s", json_error);
+                *error = gc_asprintf(&gc, "JSON parse error: %s", json_error);
             } else {
-                *error = gc_strdup("Invalid JSON in config file");
+                *error = gc_strdup(&gc, "Invalid JSON in config file");
             }
         }
         return NULL;
@@ -152,7 +152,7 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
     
     if (!cJSON_IsObject(json)) {
         if (error) {
-            *error = gc_strdup("Config file must contain a JSON object");
+            *error = gc_strdup(&gc, "Config file must contain a JSON object");
         }
         return NULL;
     }
@@ -163,7 +163,7 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
     int count = cJSON_GetArraySize(json);
     if (count <= 0) {
         if (error) {
-            *error = gc_strdup("Config file contains no models");
+            *error = gc_strdup(&gc, "Config file contains no models");
         }
         return NULL;
     }
@@ -179,14 +179,14 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
         
         if (!model_name || strlen(model_name) == 0) {
             if (error) {
-                *error = gc_strdup("Model name cannot be empty");
+                *error = gc_strdup(&gc, "Model name cannot be empty");
             }
             return NULL;
         }
         
         if (!cJSON_IsObject(model_obj)) {
             if (error) {
-                *error = gc_asprintf("Model '%s' definition must be an object", model_name);
+                *error = gc_asprintf(&gc, "Model '%s' definition must be an object", model_name);
             }
             return NULL;
         }
@@ -201,13 +201,13 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
         
         if (!type || !cJSON_IsString(type)) {
             if (error) {
-                *error = gc_asprintf("Model '%s' missing required 'type' field", model_name);
+                *error = gc_asprintf(&gc, "Model '%s' missing required 'type' field", model_name);
             }
             return NULL;
         }
         
         // Store model name
-        config->models[index].name = gc_strdup(model_name);
+        config->models[index].name = gc_strdup(&gc, model_name);
         
         // Store max context bytes if provided, otherwise use default
         if (max_context_bytes && cJSON_IsNumber(max_context_bytes)) {
@@ -223,26 +223,26 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
             
             if (!endpoint || !cJSON_IsString(endpoint)) {
                 if (error) {
-                    *error = gc_asprintf("OpenAI model '%s' missing required 'endpoint' field", model_name);
+                    *error = gc_asprintf(&gc, "OpenAI model '%s' missing required 'endpoint' field", model_name);
                 }
                 return NULL;
             }
             
-            config->models[index].config.openai.endpoint = gc_strdup(endpoint->valuestring);
+            config->models[index].config.openai.endpoint = gc_strdup(&gc, endpoint->valuestring);
             
             // Store model name if provided
             if (model && cJSON_IsString(model)) {
-                config->models[index].config.openai.model = gc_strdup(model->valuestring);
+                config->models[index].config.openai.model = gc_strdup(&gc, model->valuestring);
             } else {
                 config->models[index].config.openai.model = NULL;
             }
             
             // Handle API key (either direct or via environment variable)
             if (api_key && cJSON_IsString(api_key)) {
-                config->models[index].config.openai.api_key = gc_strdup(api_key->valuestring);
+                config->models[index].config.openai.api_key = gc_strdup(&gc, api_key->valuestring);
             } else if (api_key_env && cJSON_IsString(api_key_env)) {
                 const char *env_value = getenv(api_key_env->valuestring);
-                config->models[index].config.openai.api_key = env_value ? gc_strdup(env_value) : NULL;
+                config->models[index].config.openai.api_key = env_value ? gc_strdup(&gc, env_value) : NULL;
             } else {
                 config->models[index].config.openai.api_key = NULL;
             }
@@ -257,7 +257,7 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
             
         } else {
             if (error) {
-                *error = gc_asprintf("Model '%s' has invalid type '%s' (must be 'openai')", 
+                *error = gc_asprintf(&gc, "Model '%s' has invalid type '%s' (must be 'openai')", 
                                    model_name, type->valuestring);
             }
             return NULL;
@@ -294,7 +294,7 @@ model_config_t *init_models(char **error) {
     
     if (!config_path) {
         if (error) {
-            *error = gc_strdup("Failed to determine config path");
+            *error = gc_strdup(&gc, "Failed to determine config path");
         }
         return NULL;
     }
@@ -305,7 +305,7 @@ model_config_t *init_models(char **error) {
     if (exists == -1) {
         // Error accessing file
         if (error) {
-            *error = gc_asprintf("Failed to access config file %s: %s", config_path, strerror(errno));
+            *error = gc_asprintf(&gc, "Failed to access config file %s: %s", config_path, strerror(errno));
         }
         return NULL;
     } else if (exists == 0) {
@@ -313,7 +313,7 @@ model_config_t *init_models(char **error) {
         models = create_default_models();
         if (!models) {
             if (error) {
-                *error = gc_strdup("Failed to create default models");
+                *error = gc_strdup(&gc, "Failed to create default models");
             }
             return NULL;
         }
@@ -327,7 +327,7 @@ model_config_t *init_models(char **error) {
             if (load_error) {
                 *error = load_error;
             } else {
-                *error = gc_strdup("Failed to parse JSON config file");
+                *error = gc_strdup(&gc, "Failed to parse JSON config file");
             }
         }
         return NULL;
@@ -390,7 +390,7 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
         if (mem->options->cancellation_callback(mem->options->cancellation_user_data)) {
             // Set error and return 0 to abort the transfer
             if (mem->error && !*mem->error) {
-                *mem->error = gc_strdup("Operation cancelled by user");
+                *mem->error = gc_strdup(&gc, "Operation cancelled by user");
             }
             return 0;
         }
@@ -428,7 +428,7 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
         if (state->options->cancellation_callback(state->options->cancellation_user_data)) {
             // Set error and return 0 to abort the transfer
             if (state->error && !*state->error) {
-                *state->error = gc_strdup("Operation cancelled by user");
+                *state->error = gc_strdup(&gc, "Operation cancelled by user");
             }
             return 0;
         }
@@ -463,7 +463,7 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
                 if (strncmp(line, "data: ", 6) == 0) {
 
                     // We must dup the string for gc root reasons.
-                    const char *data = gc_strdup(line + 6);
+                    const char *data = gc_strdup(&gc, line + 6);
                     
                     // Check for [DONE] message
                     if (strcmp(data, "[DONE]") == 0) {
@@ -521,11 +521,11 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
                                 cJSON *error_msg = cJSON_GetObjectItem(error_obj, "message");
                                 if (error_msg && cJSON_IsString(error_msg)) {
                                     if (state->error && !*state->error) {
-                                        *state->error = gc_asprintf("API error: %s", error_msg->valuestring);
+                                        *state->error = gc_asprintf(&gc, "API error: %s", error_msg->valuestring);
                                     }
                                 } else {
                                     if (state->error && !*state->error) {
-                                        *state->error = gc_strdup("API returned an error");
+                                        *state->error = gc_strdup(&gc, "API returned an error");
                                     }
                                 }
                                 return 0; // Stop processing on error
@@ -578,7 +578,7 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     CURL *curl = curl_easy_init();
     if (!curl) {
         if (error) {
-            *error = gc_strdup("Failed to initialize cURL");
+            *error = gc_strdup(&gc, "Failed to initialize cURL");
         }
         return NULL;
     }
@@ -587,7 +587,7 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     if (!request_body) {
         curl_easy_cleanup(curl);
         if (error) {
-            *error = gc_strdup("Failed to serialize JSON request");
+            *error = gc_strdup(&gc, "Failed to serialize JSON request");
         }
         return NULL;
     }
@@ -605,7 +605,7 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     headers = curl_slist_append(headers, "Accept: text/event-stream");
     headers = curl_slist_append(headers, "Cache-Control: no-cache");
     
-    char *auth_header = gc_asprintf("Authorization: Bearer %s", model->config.openai.api_key);
+    char *auth_header = gc_asprintf(&gc, "Authorization: Bearer %s", model->config.openai.api_key);
     headers = curl_slist_append(headers, auth_header);
     
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -627,9 +627,9 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     if (res != CURLE_OK) {
         if (error) {
             if (res == CURLE_ABORTED_BY_CALLBACK) {
-                *error = gc_strdup("Operation cancelled by user");
+                *error = gc_strdup(&gc, "Operation cancelled by user");
             } else {
-                *error = gc_asprintf("cURL error: %s", curl_easy_strerror(res));
+                *error = gc_asprintf(&gc, "cURL error: %s", curl_easy_strerror(res));
             }
         }
         return NULL;
@@ -644,7 +644,7 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     if (state.line_buffer.size > 0 && !state.done) {
         // This shouldn't happen with properly formatted SSE, but handle it gracefully
         if (error) {
-            *error = gc_strdup("Incomplete SSE data received");
+            *error = gc_strdup(&gc, "Incomplete SSE data received");
         }
         return NULL;
     }
@@ -654,7 +654,7 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     
     if (!complete_response || strlen(complete_response) == 0) {
         if (error) {
-            *error = gc_strdup("No content received from streaming API");
+            *error = gc_strdup(&gc, "No content received from streaming API");
         }
         return NULL;
     }
@@ -669,7 +669,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     CURL *curl = curl_easy_init();
     if (!curl) {
         if (error) {
-            *error = gc_strdup("Failed to initialize cURL");
+            *error = gc_strdup(&gc, "Failed to initialize cURL");
         }
         return NULL;
     }
@@ -686,7 +686,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     if (!request_body) {
         curl_easy_cleanup(curl);
         if (error) {
-            *error = gc_strdup("Failed to serialize JSON request");
+            *error = gc_strdup(&gc, "Failed to serialize JSON request");
         }
         return NULL;
     }
@@ -702,7 +702,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     
-    char *auth_header = gc_asprintf("Authorization: Bearer %s", model->config.openai.api_key);
+    char *auth_header = gc_asprintf(&gc, "Authorization: Bearer %s", model->config.openai.api_key);
     headers = curl_slist_append(headers, auth_header);
     
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -724,9 +724,9 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     if (res != CURLE_OK) {
         if (error) {
             if (res == CURLE_ABORTED_BY_CALLBACK) {
-                *error = gc_strdup("Operation cancelled by user");
+                *error = gc_strdup(&gc, "Operation cancelled by user");
             } else {
-                *error = gc_asprintf("cURL error: %s", curl_easy_strerror(res));
+                *error = gc_asprintf(&gc, "cURL error: %s", curl_easy_strerror(res));
             }
         }
         return NULL;
@@ -736,7 +736,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     cJSON *response_json = cJSON_Parse(response.data);
     if (!response_json) {
         if (error) {
-            *error = gc_strdup("Failed to parse API response");
+            *error = gc_strdup(&gc, "Failed to parse API response");
         }
         return NULL;
     }
@@ -747,11 +747,11 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
         cJSON *error_msg = cJSON_GetObjectItem(error_obj, "message");
         if (error_msg && cJSON_IsString(error_msg)) {
             if (error) {
-                *error = gc_asprintf("API error: %s", error_msg->valuestring);
+                *error = gc_asprintf(&gc, "API error: %s", error_msg->valuestring);
             }
         } else {
             if (error) {
-                *error = gc_strdup("API returned an error");
+                *error = gc_strdup(&gc, "API returned an error");
             }
         }
         return NULL;
@@ -771,7 +771,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
                 // Check for regular content
                 cJSON *content = cJSON_GetObjectItem(message, "content");
                 if (content && cJSON_IsString(content)) {
-                    content_text = gc_strdup(content->valuestring);
+                    content_text = gc_strdup(&gc, content->valuestring);
                     
                     // Call the output callback for content if provided
                     if (options && options->output_callback && *content_text) {
@@ -801,7 +801,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     
     if (!content_text) {
         if (error) {
-            *error = gc_strdup("No content text found in API response");
+            *error = gc_strdup(&gc, "No content text found in API response");
         }
         return NULL;
     }
@@ -814,7 +814,7 @@ static char *openai_completion(model_t *model, const char *prompt, const model_c
     // Check if API key is available
     if (!model->config.openai.api_key) {
         if (error) {
-            *error = gc_asprintf("No API key configured for model '%s'", model->name);
+            *error = gc_asprintf(&gc, "No API key configured for model '%s'", model->name);
         }
         return NULL;
     }
@@ -823,7 +823,7 @@ static char *openai_completion(model_t *model, const char *prompt, const model_c
     cJSON *request_json = cJSON_CreateObject();
     if (!request_json) {
         if (error) {
-            *error = gc_strdup("Failed to create JSON request");
+            *error = gc_strdup(&gc, "Failed to create JSON request");
         }
         return NULL;
     }
@@ -836,7 +836,7 @@ static char *openai_completion(model_t *model, const char *prompt, const model_c
     // Verify endpoint is /chat/completions
     if (!strstr(model->config.openai.endpoint, "/chat/completions")) {
         if (error) {
-            *error = gc_asprintf("Model '%s' endpoint must be a /chat/completions endpoint", model->name);
+            *error = gc_asprintf(&gc, "Model '%s' endpoint must be a /chat/completions endpoint", model->name);
         }
         return NULL;
     }
@@ -882,7 +882,7 @@ static char *openai_completion(model_t *model, const char *prompt, const model_c
 char *model_completion(model_t *model, const char *prompt, const model_completion_options_t *options, char **error) {
     if (!model || !prompt) {
         if (error) {
-            *error = gc_strdup("Invalid parameters: model and prompt are required");
+            *error = gc_strdup(&gc, "Invalid parameters: model and prompt are required");
         }
         return NULL;
     }
@@ -893,7 +893,7 @@ char *model_completion(model_t *model, const char *prompt, const model_completio
             return openai_completion(model, prompt, options, error);
         default:
             if (error) {
-                *error = gc_asprintf("Unknown model type for model '%s'", model->name);
+                *error = gc_asprintf(&gc, "Unknown model type for model '%s'", model->name);
             }
             return NULL;
     }

@@ -43,7 +43,7 @@ static int exec_command(const char *command, char **out_output, int forward_outp
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         if (out_output) {
-            *out_output = gc_asprintf("Failed to create pipe: %s", strerror(errno));
+            *out_output = gc_asprintf(&gc, "Failed to create pipe: %s", strerror(errno));
         }
         return -1;
     }
@@ -51,7 +51,7 @@ static int exec_command(const char *command, char **out_output, int forward_outp
     pid_t pid = fork();
     if (pid == -1) {
         if (out_output) {
-            *out_output = gc_asprintf("Failed to fork: %s", strerror(errno));
+            *out_output = gc_asprintf(&gc, "Failed to fork: %s", strerror(errno));
         }
         close(pipefd[0]);
         close(pipefd[1]);
@@ -103,7 +103,7 @@ static int exec_command(const char *command, char **out_output, int forward_outp
     int status;
     if (waitpid(pid, &status, 0) == -1) {
         if (out_output) {
-            *out_output = gc_asprintf("Failed to wait for child process: %s", strerror(errno));
+            *out_output = gc_asprintf(&gc, "Failed to wait for child process: %s", strerror(errno));
         }
         return -1;
     }
@@ -199,7 +199,7 @@ static void read_state_json(const char *path, AgentState *state, AgentCommandSta
         state->done = true;
         cJSON *done_msg = cJSON_GetObjectItem(root, "done_message");
         if (done_msg && cJSON_IsString(done_msg)) {
-            state->done_message = gc_strdup(cJSON_GetStringValue(done_msg));
+            state->done_message = gc_strdup(&gc, cJSON_GetStringValue(done_msg));
         }
     }
     
@@ -208,7 +208,7 @@ static void read_state_json(const char *path, AgentState *state, AgentCommandSta
         state->aborted = true;
         cJSON *abort_msg = cJSON_GetObjectItem(root, "abort_message");
         if (abort_msg && cJSON_IsString(abort_msg)) {
-            state->abort_message = gc_strdup(cJSON_GetStringValue(abort_msg));
+            state->abort_message = gc_strdup(&gc, cJSON_GetStringValue(abort_msg));
         }
     }
     
@@ -216,7 +216,7 @@ static void read_state_json(const char *path, AgentState *state, AgentCommandSta
     cJSON *wd = cJSON_GetObjectItem(root, "working_dir");
     if (wd && cJSON_IsString(wd)) {
         // gc doesn't have explicit free
-        state->working_dir = gc_strdup(cJSON_GetStringValue(wd));
+        state->working_dir = gc_strdup(&gc, cJSON_GetStringValue(wd));
         cmd_state->working_dir = state->working_dir;
     }
     
@@ -229,7 +229,7 @@ static void read_state_json(const char *path, AgentState *state, AgentCommandSta
         for (int i = 0; i < new_count; i++) {
             cJSON *item = cJSON_GetArrayItem(focused, i);
             if (item && cJSON_IsString(item)) {
-                new_files[i] = gc_strdup(cJSON_GetStringValue(item));
+                new_files[i] = gc_strdup(&gc, cJSON_GetStringValue(item));
             }
         }
         
@@ -245,22 +245,22 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     char temp_template[] = "/tmp/minicoder-XXXXXX";
     char *temp_dir = mkdtemp(temp_template);
     if (!temp_dir) {
-        return gc_strdup("Error: Failed to create temporary directory");
+        return gc_strdup(&gc, "Error: Failed to create temporary directory");
     }
     // Make a gc copy since temp_template is on stack
-    temp_dir = gc_strdup(temp_dir);
+    temp_dir = gc_strdup(&gc, temp_dir);
     
     // Get current executable path
     if (!g_executable_path[0]) {
         remove_directory(temp_dir);
-        return gc_strdup("Error: Failed to get executable path");
+        return gc_strdup(&gc, "Error: Failed to get executable path");
     }
     
     // Create bin directory
-    char *bin_dir = gc_asprintf("%s/bin", temp_dir);
+    char *bin_dir = gc_asprintf(&gc, "%s/bin", temp_dir);
     if (mkdir(bin_dir, 0755) != 0) {
         remove_directory(temp_dir);
-        return gc_strdup("Error: Failed to create bin directory");
+        return gc_strdup(&gc, "Error: Failed to create bin directory");
     }
     
     // Create symlinks for agent commands
@@ -269,26 +269,26 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     };
     
     for (int i = 0; i < 4; i++) {
-        char *link_path = gc_asprintf("%s/bin/%s", temp_dir, commands[i]);
+        char *link_path = gc_asprintf(&gc, "%s/bin/%s", temp_dir, commands[i]);
         if (symlink(g_executable_path, link_path) != 0) {
             remove_directory(temp_dir);
-            return gc_asprintf("Error: Failed to create symlink for %s", commands[i]);
+            return gc_asprintf(&gc, "Error: Failed to create symlink for %s", commands[i]);
         }
     }
     
     // Write initial state JSON
-    char *state_path = gc_asprintf("%s/model_state.json", temp_dir);
+    char *state_path = gc_asprintf(&gc, "%s/model_state.json", temp_dir);
     if (write_state_json(state_path, cmd_state) != 0) {
         remove_directory(temp_dir);
-        return gc_strdup("Error: Failed to write initial state JSON");
+        return gc_strdup(&gc, "Error: Failed to write initial state JSON");
     }
     
     // Create script file
-    char *script_path = gc_asprintf("%s/script.sh", temp_dir);
+    char *script_path = gc_asprintf(&gc, "%s/script.sh", temp_dir);
     FILE *f = fopen(script_path, "w");
     if (!f) {
         remove_directory(temp_dir);
-        return gc_strdup("Error: Failed to create script file");
+        return gc_strdup(&gc, "Error: Failed to create script file");
     }
     
     // Get current PATH to preserve it
@@ -304,32 +304,32 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
         fprintf(f, "set -ex\n") < 0) {
         fclose(f);
         remove_directory(temp_dir);
-        return gc_strdup("Error: Failed to write script header");
+        return gc_strdup(&gc, "Error: Failed to write script header");
     }
     
     if (cmd_state->working_dir) {
         if (fprintf(f, "cd '%s'\n", cmd_state->working_dir) < 0) {
             fclose(f);
             remove_directory(temp_dir);
-            return gc_strdup("Error: Failed to write working directory change");
+            return gc_strdup(&gc, "Error: Failed to write working directory change");
         }
     }
     
     if (fprintf(f, "%s\n", script) < 0) {
         fclose(f);
         remove_directory(temp_dir);
-        return gc_strdup("Error: Failed to write script body");
+        return gc_strdup(&gc, "Error: Failed to write script body");
     }
     
     if (fclose(f) != 0) {
         remove_directory(temp_dir);
-        return gc_strdup("Error: Failed to close script file");
+        return gc_strdup(&gc, "Error: Failed to close script file");
     }
     
     // Make script executable
     if (chmod(script_path, 0755) != 0) {
         remove_directory(temp_dir);
-        return gc_asprintf("Error: Failed to make script executable: %s", strerror(errno));
+        return gc_asprintf(&gc, "Error: Failed to make script executable: %s", strerror(errno));
     }
     
     // Execute the script
@@ -337,7 +337,7 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     int exit_code = exec_command(script_path, &output, 1);
     if (exit_code < 0) {
         remove_directory(temp_dir);
-        return gc_asprintf("Error: Failed to execute script: %s", 
+        return gc_asprintf(&gc, "Error: Failed to execute script: %s", 
                           output ? output : "Unknown error");
     }
     

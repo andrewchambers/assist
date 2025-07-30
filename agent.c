@@ -133,7 +133,7 @@ static char* extract_exec_script(const char *text) {
 // Helper function to truncate text to a maximum byte length
 static char* truncate_text(const char *text, size_t max_bytes, const char *truncation_note) {
     if (!text || strlen(text) <= max_bytes) {
-        return gc_strdup(text ? text : "");
+        return gc_strdup(&gc, text ? text : "");
     }
     
     // Find a good truncation point (not in the middle of a line)
@@ -165,7 +165,7 @@ static char* truncate_text(const char *text, size_t max_bytes, const char *trunc
 // Helper function to truncate history if needed
 static char* truncate_history_if_needed(const char *history, size_t max_bytes) {
     if (!history || strlen(history) <= max_bytes) {
-        return gc_strdup(history ? history : "(none)");
+        return gc_strdup(&gc, history ? history : "(none)");
     }
     
     // For history, we want to keep the end (most recent output)
@@ -388,13 +388,13 @@ AgentResult run_agent(AgentArgs *args) {
     
     // Initialize working directory
     if (args->working_dir) {
-        state.working_dir = gc_strdup(args->working_dir);
-        cmd_state.working_dir = gc_strdup(args->working_dir);
+        state.working_dir = gc_strdup(&gc, args->working_dir);
+        cmd_state.working_dir = gc_strdup(&gc, args->working_dir);
     } else {
         char cwd[4096];
         if (getcwd(cwd, sizeof(cwd))) {
-            state.working_dir = gc_strdup(cwd);
-            cmd_state.working_dir = gc_strdup(cwd);
+            state.working_dir = gc_strdup(&gc, cwd);
+            cmd_state.working_dir = gc_strdup(&gc, cwd);
         }
     }
     
@@ -403,7 +403,7 @@ AgentResult run_agent(AgentArgs *args) {
         // Copy the already-expanded paths from args
         state.focused_files = gc_malloc(&gc, args->initial_focus_count * sizeof(char*));
         for (int i = 0; i < args->initial_focus_count; i++) {
-            state.focused_files[i] = gc_strdup(args->initial_focus[i]);
+            state.focused_files[i] = gc_strdup(&gc, args->initial_focus[i]);
         }
         state.focused_files_count = args->initial_focus_count;
         
@@ -504,9 +504,9 @@ AgentResult run_agent(AgentArgs *args) {
         // Only add newline before header if it's not the first iteration
         const char *iteration_header;
         if (state.iteration > 1) {
-            iteration_header = gc_asprintf("\n=== Iteration %d ===\n", state.iteration);
+            iteration_header = gc_asprintf(&gc, "\n=== Iteration %d ===\n", state.iteration);
         } else {
-            iteration_header = gc_asprintf("=== Iteration %d ===\n", state.iteration);
+            iteration_header = gc_asprintf(&gc, "=== Iteration %d ===\n", state.iteration);
         }
         fprintf(args->output, "%s", iteration_header);
         string_builder_append_str(&iteration_sb, iteration_header);

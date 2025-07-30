@@ -58,7 +58,7 @@ void self_exec_path_init(const char *argv0) {
         }
         
         // Make a copy of PATH since strtok modifies the string
-        char *path_copy = gc_strdup(path_env);
+        char *path_copy = gc_strdup(&gc, path_env);
         
         char *dir = strtok(path_copy, ":");
         bool found = false;
@@ -142,9 +142,9 @@ int agent_command_main(const char *cmd, int argc, char *argv[]) {
             // Get absolute path
             char *abs_path = realpath(argv[i], NULL);
             if (!abs_path) {
-                abs_path = gc_strdup(argv[i]);
+                abs_path = gc_strdup(&gc, argv[i]);
             } else {
-                char *gc_abs = gc_strdup(abs_path);
+                char *gc_abs = gc_strdup(&gc, abs_path);
                 free(abs_path);
                 abs_path = gc_abs;
             }
@@ -170,7 +170,7 @@ int agent_command_main(const char *cmd, int argc, char *argv[]) {
             fprintf(stderr, "Error: Invalid directory path: %s\n", argv[1]);
             return 1;
         }
-        char *gc_abs = gc_strdup(abs_path);
+        char *gc_abs = gc_strdup(&gc, abs_path);
         free(abs_path);
         
         cJSON_DeleteItemFromObject(root, "working_dir");

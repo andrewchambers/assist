@@ -7,12 +7,12 @@
 /**
  * Duplicate string, die on failure.
  */
-char *gc_strdup(const char *s);
+char *gc_strdup(gc_state *gc, const char *s);
 
 /**
  * Allocate and format string (like asprintf).
  */
-char *gc_asprintf(const char *fmt, ...);
+char *gc_asprintf(gc_state *gc, const char *fmt, ...);
 
 /**
  * String builder for efficient string concatenation

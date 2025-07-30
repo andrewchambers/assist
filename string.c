@@ -4,12 +4,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-extern gc_state gc;
-
-char *gc_strdup(const char *s) {
+char *gc_strdup(gc_state *gc, const char *s) {
     if (!s) return NULL;
     size_t len = strlen(s) + 1;
-    char *dup = gc_malloc(&gc, len);
+    char *dup = gc_malloc(gc, len);
     if (!dup) {
         die("Memory allocation failed");
     }
@@ -17,7 +15,7 @@ char *gc_strdup(const char *s) {
     return dup;
 }
 
-char *gc_asprintf(const char *fmt, ...) {
+char *gc_asprintf(gc_state *gc, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     
@@ -31,7 +29,7 @@ char *gc_asprintf(const char *fmt, ...) {
         return NULL;
     }
     
-    char *str = gc_malloc(&gc, len + 1);
+    char *str = gc_malloc(gc, len + 1);
     if (!str) {
         va_end(args);
         die("Memory allocation failed");

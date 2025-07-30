@@ -46,7 +46,7 @@ char *file_to_string(const char *path, char **error) {
     struct stat st;
     if (stat(path, &st) != 0) {
         if (error) {
-            *error = gc_asprintf("Failed to stat file '%s': %s", path, strerror(errno));
+            *error = gc_asprintf(&gc, "Failed to stat file '%s': %s", path, strerror(errno));
         }
         return NULL;
     }
@@ -54,7 +54,7 @@ char *file_to_string(const char *path, char **error) {
     FILE *fp = fopen(path, "rb");
     if (!fp) {
         if (error) {
-            *error = gc_asprintf("Failed to open file '%s': %s", path, strerror(errno));
+            *error = gc_asprintf(&gc, "Failed to open file '%s': %s", path, strerror(errno));
         }
         return NULL;
     }
@@ -69,7 +69,7 @@ char *file_to_string(const char *path, char **error) {
     
     if (bytes_read != size) {
         if (error) {
-            *error = gc_asprintf("Failed to read file '%s': expected %zu bytes, got %zu", path, size, bytes_read);
+            *error = gc_asprintf(&gc, "Failed to read file '%s': expected %zu bytes, got %zu", path, size, bytes_read);
         }
         return NULL;
     }
@@ -82,7 +82,7 @@ int is_binary_file(const char *path, char **error) {
     FILE *file = fopen(path, "rb");
     if (!file) {
         if (error) {
-            *error = gc_asprintf("Failed to open file '%s': %s", path, strerror(errno));
+            *error = gc_asprintf(&gc, "Failed to open file '%s': %s", path, strerror(errno));
         }
         return -1;
     }
@@ -92,7 +92,7 @@ int is_binary_file(const char *path, char **error) {
     size_t n = fread(buf, 1, sizeof(buf), file);
     if (ferror(file)) {
         if (error) {
-            *error = gc_asprintf("Failed to read file '%s': %s", path, strerror(errno));
+            *error = gc_asprintf(&gc, "Failed to read file '%s': %s", path, strerror(errno));
         }
         fclose(file);
         return -1;
@@ -132,7 +132,7 @@ int remove_directory(const char *path) {
             continue;
         }
         
-        char *full_path = gc_asprintf("%s/%s", path, entry->d_name);
+        char *full_path = gc_asprintf(&gc, "%s/%s", path, entry->d_name);
         struct stat st;
         
         if (lstat(full_path, &st) == 0) {
@@ -217,7 +217,7 @@ int expand_globs(const char *words, expand_globs_t *result) {
                 capacity *= 2;
                 wordv = gc_realloc(&gc, wordv, capacity * sizeof(char*));
             }
-            wordv[wordc++] = gc_strdup(&buffer[word_start]);
+            wordv[wordc++] = gc_strdup(&gc, &buffer[word_start]);
         } else {
             // Find end of unquoted word
             while (pos < len && buffer[pos] && buffer[pos] != ' ' && buffer[pos] != '\t' && buffer[pos] != '\n') {
@@ -242,7 +242,7 @@ int expand_globs(const char *words, expand_globs_t *result) {
                         capacity *= 2;
                         wordv = gc_realloc(&gc, wordv, capacity * sizeof(char*));
                     }
-                    wordv[wordc++] = gc_strdup(glob_result.gl_pathv[i]);
+                    wordv[wordc++] = gc_strdup(&gc, glob_result.gl_pathv[i]);
                 }
                 globfree(&glob_result);
             } else {
@@ -251,7 +251,7 @@ int expand_globs(const char *words, expand_globs_t *result) {
                     capacity *= 2;
                     wordv = gc_realloc(&gc, wordv, capacity * sizeof(char*));
                 }
-                wordv[wordc++] = gc_strdup(&buffer[word_start]);
+                wordv[wordc++] = gc_strdup(&gc, &buffer[word_start]);
             }
             
             // Restore the character
