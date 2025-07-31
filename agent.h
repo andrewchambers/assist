@@ -39,6 +39,7 @@ typedef struct {
     char *working_dir;
     model_config_t *model_config;
     model_cancellation_callback should_cancel;  // Optional cancellation check callback
+    char *extra_instructions;  // Optional extra instructions to include in prompts
 } AgentArgs;
 
 typedef struct {

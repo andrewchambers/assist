@@ -360,6 +360,16 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
 }
 
 static char *get_config_path(void) {
+    // First, check MINICODER_MODEL_CONFIG environment variable
+    const char *env_config = getenv("MINICODER_MODEL_CONFIG");
+    if (env_config && strlen(env_config) > 0) {
+        int exists = file_exists(env_config);
+        if (exists == 1) {
+            return gc_strdup(&gc, env_config);
+        }
+    }
+    
+    // Second, check XDG_CONFIG_HOME or ~/.config
     char *config_home = getenv("XDG_CONFIG_HOME");
     char *home = getenv("HOME");
     char *path = NULL;
@@ -367,58 +377,52 @@ static char *get_config_path(void) {
     if (config_home) {
         size_t len = strlen(config_home) + strlen("/minicoder/models.json") + 1;
         path = gc_malloc(&gc, len);
-        if (!path) return NULL;
-        snprintf(path, len, "%s/minicoder/models.json", config_home);
+        if (path) {
+            snprintf(path, len, "%s/minicoder/models.json", config_home);
+            if (file_exists(path) == 1) {
+                return path;
+            }
+        }
     } else if (home) {
         size_t len = strlen(home) + strlen("/.config/minicoder/models.json") + 1;
         path = gc_malloc(&gc, len);
-        if (!path) return NULL;
-        snprintf(path, len, "%s/.config/minicoder/models.json", home);
-    }
-    
-    return path;
-}
-
-model_config_t *init_models(char **error) {
-    model_config_t *models = NULL;
-    char *load_error = NULL;
-    
-    // First, check MINICODER_MODEL_CONFIG environment variable
-    const char *env_config = getenv("MINICODER_MODEL_CONFIG");
-    if (env_config && strlen(env_config) > 0) {
-        int exists = file_exists(env_config);
-        if (exists == 1) {
-            models = load_models_from_file(env_config, &load_error);
-            if (models) {
-                return models;
-            }
-            // Continue to other locations if this fails
-        }
-    }
-    
-    // Second, check XDG_CONFIG_HOME or ~/.config
-    char *config_path = get_config_path();
-    if (config_path) {
-        int exists = file_exists(config_path);
-        if (exists == 1) {
-            models = load_models_from_file(config_path, &load_error);
-            if (models) {
-                return models;
+        if (path) {
+            snprintf(path, len, "%s/.config/minicoder/models.json", home);
+            if (file_exists(path) == 1) {
+                return path;
             }
         }
     }
     
     // Third, check /etc/minicoder/models.json
     const char *etc_config = "/etc/minicoder/models.json";
-    int exists = file_exists(etc_config);
-    if (exists == 1) {
-        models = load_models_from_file(etc_config, &load_error);
-        if (models) {
-            return models;
-        }
+    if (file_exists(etc_config) == 1) {
+        return gc_strdup(&gc, etc_config);
     }
     
-    // If no config files found anywhere, create defaults
+    // No config file found
+    return NULL;
+}
+
+model_config_t *init_models(char **error) {
+    model_config_t *models = NULL;
+    char *load_error = NULL;
+    
+    // Try to find and load a config file
+    char *config_path = get_config_path();
+    if (config_path) {
+        models = load_models_from_file(config_path, &load_error);
+        if (!models) {
+            // Loading failed - return the error
+            if (error) {
+                *error = load_error ? load_error : gc_strdup(&gc, "Failed to load model configuration");
+            }
+            return NULL;
+        }
+        return models;
+    }
+    
+    // No config files found - create defaults
     models = create_default_models();
     if (!models) {
         if (error) {

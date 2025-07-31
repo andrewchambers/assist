@@ -217,7 +217,8 @@ static int assist_main(int argc, char *argv[]) {
         .output = stdout,
         .working_dir = NULL,  // Use current directory
         .model_config = model_config,
-        .should_cancel = cancellation_callback
+        .should_cancel = cancellation_callback,
+        .extra_instructions = NULL  // No extra instructions from CLI for now
     };
     
     // Run the agent

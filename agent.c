@@ -243,6 +243,7 @@ typedef struct {
     const AgentState *state;
     const char *focused_files;
     const char *history;
+    const char *extra_instructions;
 } PromptBuildArgs;
 
 // Build the prompt for the LLM
@@ -254,29 +255,28 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "You are an AI agent that is part of an outer execution loop.\n");
     string_builder_append_str(&sb, "Your goal is to execute one shell script per iteration in order to accomplish a user task, or answer a user question.\n\n");
     
-    string_builder_append_str(&sb, "## HOW TO EXECUTE SCRIPTS\n\n");
+    string_builder_append_str(&sb, "# HOW TO EXECUTE SCRIPTS\n\n");
+
     string_builder_append_str(&sb, "Output a single shell script in this format:\n\n");
+
     string_builder_append_str(&sb, "exec\n```\n");
     string_builder_append_str(&sb, "# Your POSIX shell script here\n");
     string_builder_append_str(&sb, "```\n\n");
+
+    string_builder_append_str(&sb, "Your script will be run automatically at the end of your turn, and the output will be returned in the next iteration.\n");
     string_builder_append_str(&sb, "Scripts run with -e (exit on error) and -x (debug trace) flags set.\n");
-    string_builder_append_str(&sb, "Code blocks support markdown delimiters (3+ ` or ~). Adjust if your script contains backticks.\n\n");
+    string_builder_append_str(&sb, "The exec code blocks support markdown delimiters (3+ ` or ~). Adjust the delimiters if your script contains backticks.\n\n");
+
+    string_builder_append_str(&sb, "# AGENT COMMANDS\n\n");
+
+    string_builder_append_str(&sb, "Special commands that control the agent loop are available in your scripts PATH (use them within exec blocks):\n\n");
+    string_builder_append_str(&sb, "- agent-files [FILES...] # Replace currently focused files (shown in every iteration, empty to clear)\n");
+    string_builder_append_str(&sb, "- agent-cd PATH          # Change working directory permanently (persists across iterations)\n");
+    string_builder_append_str(&sb, "- agent-abort            # Stop with failure (pipe message: echo \"reason\" | agent-abort)\n");
+    string_builder_append_str(&sb, "- agent-done             # Complete successfully (pipe message: echo \"summary\" | agent-done)\n\n");
     
-    string_builder_append_str(&sb, "## AGENT COMMANDS\n\n");
-    string_builder_append_str(&sb, "Special commands that control the agent loop (use within exec blocks):\n\n");
-    string_builder_append_str(&sb, "- agent-files FILE1 FILE2...  # Replace focused files (shown in every iteration)\n");
-    string_builder_append_str(&sb, "- agent-files                 # Clear all focused files\n");
-    string_builder_append_str(&sb, "- agent-cd PATH              # Change working directory permanently (persists across iterations)\n");
-    string_builder_append_str(&sb, "- agent-abort                # Stop with failure (pipe message: echo \"reason\" | agent-abort)\n");
-    string_builder_append_str(&sb, "- agent-done                 # Complete successfully (pipe message: echo \"summary\" | agent-done)\n\n");
-    
-    string_builder_append_str(&sb, "## ITERATION STRATEGY\n\n");
-    string_builder_append_str(&sb, "- Break complex tasks into smaller, verifiable steps\n");
-    string_builder_append_str(&sb, "- Try to accomplish steps each interation in logical chunks\n");
-    string_builder_append_str(&sb, "- Verify outputs before proceeding (verify success in the next iteration)\n");
-    string_builder_append_str(&sb, "- Track your own progress via notes (You only see the output of the last iteration)\n");
-    
-    string_builder_append_str(&sb, "## STATE MANAGEMENT\n\n");
+    string_builder_append_str(&sb, "# STATE MANAGEMENT\n\n");
+
     string_builder_append_str(&sb, "What persists between iterations:\n");
     string_builder_append_str(&sb, "- Working directory (via agent-cd)\n");
     string_builder_append_str(&sb, "- Focused files list (via agent-files)\n");
@@ -286,51 +286,49 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "- Current directory from 'cd' command\n");
     string_builder_append_str(&sb, "- Output from older iteration\n\n");
     
-    string_builder_append_str(&sb, "## PROGRESS TRACKING\n\n");
+    string_builder_append_str(&sb, "# PROGRESS TRACKING\n\n");
+
     string_builder_append_str(&sb, "Maintain a structured task list with clear status markers:\n\n");
-    string_builder_append_str(&sb, "Task Breakdown:\n");
+
     string_builder_append_str(&sb, "- [ ] Main task\n");
     string_builder_append_str(&sb, "  - [✓] Completed subtask (verified in previous iteration)\n");
     string_builder_append_str(&sb, "  - [→] Current subtask (what this script will do)\n");
     string_builder_append_str(&sb, "  - [ ] Pending subtask (for future iterations)\n");
     string_builder_append_str(&sb, "  - [✗] Failed subtask (needs retry or different approach)\n\n");
-    
-    string_builder_append_str(&sb, "CRITICAL: Only mark tasks [✓] complete AFTER seeing successful output!\n\n");
-    
-    string_builder_append_str(&sb, "## ERROR HANDLING\n\n");
-    string_builder_append_str(&sb, "When scripts fail:\n");
+    string_builder_append_str(&sb, "Only mark tasks [✓] complete AFTER seeing successful output, you shouldn't assume success.\n\n");
+
+    string_builder_append_str(&sb, "# TASK COMPLETION\n\n");
+
+    string_builder_append_str(&sb, "- You should only run the `agent-done` command when the original user request is satisfied\n");
+    string_builder_append_str(&sb, "- Supply a message agent-done to answer the user questions or explain what was achieved\n");
+    string_builder_append_str(&sb, "- It is easier for the user to read the agent-done message than any execution output\n\n");
+
+    string_builder_append_str(&sb, "# ERROR HANDLING\n\n");
+
+    string_builder_append_str(&sb, "When your exec script fails:\n");
     string_builder_append_str(&sb, "- Examine the -x trace output to identify the failing command\n");
     string_builder_append_str(&sb, "- Check exit codes and error messages\n");
     string_builder_append_str(&sb, "- Consider aborting with agent-abort if the task cannot proceed\n\n");
     
-    string_builder_append_str(&sb, "## BEST PRACTICES\n\n");
-    string_builder_append_str(&sb, "- Always explain what you learned from the previous output\n");
+    string_builder_append_str(&sb, "# BEST PRACTICES\n\n");
+
     string_builder_append_str(&sb, "- State clearly what your script will attempt\n");
     string_builder_append_str(&sb, "- Focus files you'll need to reference in future iterations\n");
-    string_builder_append_str(&sb, "- Preserve important information for the next iteration\n\n");
-    
-    string_builder_append_str(&sb, "REMEMBER: In each iteration, you see:\n");
-    string_builder_append_str(&sb, "1. Your own output (notes, task list, etc...) from the previous iteration\n");
-    string_builder_append_str(&sb, "2. The exec block you wrote\n");
-    string_builder_append_str(&sb, "3. The script's execution output (stdout/stderr)\n\n");
-    string_builder_append_str(&sb, "You are reading your own notes AND seeing what happened when your script ran.\n");
-    string_builder_append_str(&sb, "Design your output to help your future self understand the context and continue the work!\n\n");
-    
-    string_builder_append_str(&sb, "You should only run the `agent-done` command when the original user request is satisfied.\n");
-    string_builder_append_str(&sb, "Supply a message agent-done to answer the user questions or explain what was achieved.\n\n");
+    string_builder_append_str(&sb, "- Mention important information for use in the next iteration\n");
+    string_builder_append_str(&sb, "- Break complex tasks into smaller, verifiable steps\n");
+    string_builder_append_str(&sb, "- Try to accomplish steps each iteration in logical chunks\n");
+    string_builder_append_str(&sb, "- Verify outputs before proceeding (verify success in the next iteration)\n");
+    string_builder_append_str(&sb, "- Track your own progress via notes (you can only see the output of the last iteration)\n\n");
     
     string_builder_append_str(&sb, "--- CURRENT STATE ---\n\n");
     
-    string_builder_append_str(&sb, "User query/request:\n\n");
-    string_builder_append_fmt(&sb, "%s\n\n", args->user_request);
+    string_builder_append_fmt(&sb, "User query/request:\n\n%s\n\n", args->user_request);
     
     string_builder_append_fmt(&sb, "Working directory:\n\n%s\n\n", args->state->working_dir);
     
-    string_builder_append_str(&sb, "Focused files:\n\n");
-    string_builder_append_fmt(&sb, "%s\n\n", args->focused_files);
+    string_builder_append_fmt(&sb, "Focused files:\n\n%s\n\n", args->focused_files);
     
-    string_builder_append_str(&sb, "Last iteration:\n\n");
-    string_builder_append_fmt(&sb, "%s", args->history);
+    string_builder_append_fmt(&sb, "Last iteration:\n\n%s", args->history);
     
     return string_builder_finalize(&sb);
 }
@@ -429,7 +427,8 @@ AgentResult run_agent(AgentArgs *args) {
         .user_request = args->user_request,
         .state = &state,
         .focused_files = "(none)",
-        .history = ""
+        .history = "",
+        .extra_instructions = args->extra_instructions
     };
     char *dummy_prompt = build_prompt(&dummy_args);
     size_t system_prompt_size = strlen(dummy_prompt);
@@ -498,7 +497,8 @@ AgentResult run_agent(AgentArgs *args) {
             .user_request = args->user_request,
             .state = &state,
             .focused_files = focused_files,
-            .history = history
+            .history = history,
+            .extra_instructions = args->extra_instructions
         };
         char *prompt = build_prompt(&prompt_args);
         
@@ -551,8 +551,8 @@ AgentResult run_agent(AgentArgs *args) {
         // Start spinner while waiting for model
         start_spinner("Thinking...");
 
-        fprintf(args->output, "Assistant:\n");
-        string_builder_append_str(&iteration_sb, "Assistant:\n");
+        fprintf(args->output, "Agent:\n");
+        string_builder_append_str(&iteration_sb, "Agent:\n");
         
         char *response = model_completion(model, prompt, &options, &error);
         
