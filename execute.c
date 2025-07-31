@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 extern gc_state gc;
 
@@ -61,6 +62,13 @@ static int exec_command(const char *command, char **out_output, int forward_outp
     if (pid == 0) {
         // Child process
         close(pipefd[0]);  // Close read end
+        
+        // Redirect stdin to /dev/null to prevent reading from terminal
+        int devnull = open("/dev/null", O_RDONLY);
+        if (devnull != -1) {
+            dup2(devnull, STDIN_FILENO);
+            close(devnull);
+        }
         
         // Redirect stdout and stderr to pipe
         if (dup2(pipefd[1], STDOUT_FILENO) == -1) {

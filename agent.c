@@ -324,7 +324,7 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "User query/request:\n\n");
     string_builder_append_fmt(&sb, "%s\n\n", args->user_request);
     
-    string_builder_append_fmt(&sb, "Working directory: %s\n\n", args->state->working_dir);
+    string_builder_append_fmt(&sb, "Working directory:\n\n%s\n\n", args->state->working_dir);
     
     string_builder_append_str(&sb, "Focused files:\n\n");
     string_builder_append_fmt(&sb, "%s\n\n", args->focused_files);
@@ -448,13 +448,15 @@ AgentResult run_agent(AgentArgs *args) {
         string_builder_init(&iteration_sb, &gc, 1024);
         
         // Calculate available space for variable content
-        // Safety margin: Reserve 20% for token estimation variance
-        size_t max_context_bytes = model->max_context_bytes;
-        if (max_context_bytes == 0) {
-            // Default to 128K if model doesn't specify
-            max_context_bytes = 128 * 1024;
+        // Compute max_context_bytes from max_tokens
+        // Formula: tokens * 4 bytes/token * 0.9 safety margin / 2 for input/output split
+        if (model->max_tokens == 0) {
+            fprintf(args->output, "Error: Model '%s' does not specify max_tokens\n", model->name);
+            return AGENT_RESULT_ERROR;
         }
+        size_t max_context_bytes = (size_t)(model->max_tokens * 4 * 0.9 / 2);
         
+        // Safety margin: Reserve 20% for token estimation variance
         size_t safety_margin = max_context_bytes * 20 / 100;
         size_t available_bytes = max_context_bytes - system_prompt_size - safety_margin;
         

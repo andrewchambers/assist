@@ -19,115 +19,149 @@ static model_config_t *create_default_models(void) {
     // Check which API keys are available
     const char *openrouter_key = getenv("OPENROUTER_API_KEY");
     const char *openai_key = getenv("OPENAI_API_KEY");
+    const char *gemini_key = getenv("GEMINI_API_KEY");
+    const char *xai_key = getenv("XAI_API_KEY");
     
-    if (!openrouter_key && !openai_key) {
-        // No API keys available - set up default Ollama model
-        model_config_t *config = gc_malloc(&gc, sizeof(model_config_t));
-        config->count = 1;
-        config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
-        
-        // Default to qwen3:32b over Ollama
-        config->models[0].name = gc_strdup(&gc, "qwen3-32b");
-        config->models[0].type = MODEL_TYPE_OPENAI;
-        config->models[0].max_context_bytes = 131072;  // ~32K tokens * 4 bytes/token
-        config->models[0].config.openai.endpoint = gc_strdup(&gc, "http://localhost:11434/v1/chat/completions");
-        config->models[0].config.openai.model = gc_strdup(&gc, "qwen3:32b");
-        config->models[0].config.openai.api_key = gc_strdup(&gc, "ollama");  // Ollama doesn't require API key, but field is needed
-        config->models[0].config.openai.params = gc_strdup(&gc, "{\"stream\":true}");
-        
-        return config;
-    }
-    
+    // Initialize config
     model_config_t *config = gc_malloc(&gc, sizeof(model_config_t));
+    config->count = 0;
+    size_t capacity = 4;  // Start with small capacity
+    config->models = gc_malloc(&gc, sizeof(model_t) * capacity);
     
+    // Macro to add a model with automatic capacity management
+    // token_limit: the advertised max context length of the model in tokens (input + output)
+    #define ADD_MODEL(name_str, endpoint_str, model_str, api_key_str, params_str, token_limit) \
+        do { \
+            if (config->count >= capacity) { \
+                capacity *= 2; \
+                model_t *new_models = gc_malloc(&gc, sizeof(model_t) * capacity); \
+                memcpy(new_models, config->models, sizeof(model_t) * config->count); \
+                config->models = new_models; \
+            } \
+            config->models[config->count].name = gc_strdup(&gc, name_str); \
+            config->models[config->count].type = MODEL_TYPE_OPENAI; \
+            config->models[config->count].max_tokens = (size_t)(token_limit); \
+            config->models[config->count].config.openai.endpoint = gc_strdup(&gc, endpoint_str); \
+            config->models[config->count].config.openai.model = gc_strdup(&gc, model_str); \
+            config->models[config->count].config.openai.api_key = gc_strdup(&gc, api_key_str); \
+            config->models[config->count].config.openai.params = gc_strdup(&gc, params_str); \
+            config->count++; \
+        } while(0)
+    
+    // Add models based on available API keys, preferring OpenRouter
+
+    // OpenAI models - prefer OpenRouter if available
     if (openrouter_key) {
-        // Use OpenRouter models
-        config->count = 7;
-        config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
+        ADD_MODEL("o3", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "openai/o3",
+                  openrouter_key,
+                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  200000);  // 200k tokens
+
+                // o3-pro is OpenRouter exclusive for now due to the endpoint support.
+        ADD_MODEL("o3-pro", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "openai/o3-pro",
+                  openrouter_key,
+                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  200000);  // 200k tokens
+        ADD_MODEL("o4-mini", 
+          "https://openrouter.ai/api/v1/chat/completions",
+          "openai/o4-mini",
+          openrouter_key,
+          "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+          200000);  // 200k tokens
         
-        // Default model is first
-        config->models[0].name = gc_strdup(&gc, "o3");
-        config->models[0].type = MODEL_TYPE_OPENAI;
-        config->models[0].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[0].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
-        config->models[0].config.openai.model = gc_strdup(&gc, "openai/o3");
-        config->models[0].config.openai.api_key = gc_strdup(&gc, openrouter_key);
-        config->models[0].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
+
+    } else if (openai_key) {
+        // Fall back to direct OpenAI API
+        ADD_MODEL("o4-mini", 
+                  "https://api.openai.com/v1/chat/completions",
+                  "o4-mini",
+                  openai_key,
+                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
+                  200000);  // 200k tokens
         
-        config->models[1].name = gc_strdup(&gc, "o3-pro");
-        config->models[1].type = MODEL_TYPE_OPENAI;
-        config->models[1].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[1].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
-        config->models[1].config.openai.model = gc_strdup(&gc, "openai/o3-pro");
-        config->models[1].config.openai.api_key = gc_strdup(&gc, openrouter_key);
-        config->models[1].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
-        config->models[2].name = gc_strdup(&gc, "o4-mini");
-        config->models[2].type = MODEL_TYPE_OPENAI;
-        config->models[2].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[2].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
-        config->models[2].config.openai.model = gc_strdup(&gc, "openai/o4-mini");
-        config->models[2].config.openai.api_key = gc_strdup(&gc, openrouter_key);
-        config->models[2].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
-        config->models[3].name = gc_strdup(&gc, "grok-4");
-        config->models[3].type = MODEL_TYPE_OPENAI;
-        config->models[3].max_context_bytes = 524288;  // ~131K tokens * 4 bytes/token
-        config->models[3].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
-        config->models[3].config.openai.model = gc_strdup(&gc, "x-ai/grok-4");
-        config->models[3].config.openai.api_key = gc_strdup(&gc, openrouter_key);
-        config->models[3].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
-        config->models[4].name = gc_strdup(&gc, "gemini");
-        config->models[4].type = MODEL_TYPE_OPENAI;
-        config->models[4].max_context_bytes = 2097152;  // ~524K tokens * 4 bytes/token
-        config->models[4].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
-        config->models[4].config.openai.model = gc_strdup(&gc, "google/gemini-2.5-pro");
-        config->models[4].config.openai.api_key = gc_strdup(&gc, openrouter_key);
-        config->models[4].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
-        config->models[5].name = gc_strdup(&gc, "deepseek");
-        config->models[5].type = MODEL_TYPE_OPENAI;
-        config->models[5].max_context_bytes = 524288;  // ~131K tokens * 4 bytes/token
-        config->models[5].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
-        config->models[5].config.openai.model = gc_strdup(&gc, "deepseek/deepseek-r1-0528");
-        config->models[5].config.openai.api_key = gc_strdup(&gc, openrouter_key);
-        config->models[5].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
-
-        config->models[6].name = gc_strdup(&gc, "qwen3");
-        config->models[6].type = MODEL_TYPE_OPENAI;
-        config->models[6].max_context_bytes = 524288;  // ~131K tokens * 4 bytes/token
-        config->models[6].config.openai.endpoint = gc_strdup(&gc, "https://openrouter.ai/api/v1/chat/completions");
-        config->models[6].config.openai.model = gc_strdup(&gc, "qwen/qwen3-235b-a22b-thinking-2507");
-        config->models[6].config.openai.api_key = gc_strdup(&gc, openrouter_key);
-        config->models[6].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
-    } else {
-        // Use OpenAI models as fallback
-        config->count = 2;
-        config->models = gc_malloc(&gc, sizeof(model_t) * config->count);
-        
-        // o4-mini
-        config->models[0].name = gc_strdup(&gc, "o4-mini");
-        config->models[0].type = MODEL_TYPE_OPENAI;
-        config->models[0].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[0].config.openai.endpoint = gc_strdup(&gc, "https://api.openai.com/v1/chat/completions");
-        config->models[0].config.openai.model = gc_strdup(&gc, "o4-mini");
-        config->models[0].config.openai.api_key = gc_strdup(&gc, openai_key);
-        config->models[0].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
-        // o3 as default
-        config->models[1].name = gc_strdup(&gc, "o3");
-        config->models[1].type = MODEL_TYPE_OPENAI;
-        config->models[1].max_context_bytes = 512000;  // ~128K tokens * 4 bytes/token
-        config->models[1].config.openai.endpoint = gc_strdup(&gc, "https://api.openai.com/v1/chat/completions");
-        config->models[1].config.openai.model = gc_strdup(&gc, "o3");
-        config->models[1].config.openai.api_key = gc_strdup(&gc, openai_key);
-        config->models[1].config.openai.params = gc_strdup(&gc, "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}");
-
+        ADD_MODEL("o3", 
+                  "https://api.openai.com/v1/chat/completions",
+                  "o3",
+                  openai_key,
+                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
+                  200000);  // 200k tokens
     }
+    
+    // Gemini models - prefer OpenRouter if available
+    if (openrouter_key) {
+        ADD_MODEL("gemini", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "google/gemini-2.5-pro",
+                  openrouter_key,
+                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  1000000);
+    } else if (gemini_key) {
+        // Fall back to direct Gemini API
+        ADD_MODEL("gemini", 
+                  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                  "google/gemini-2.5-pro",
+                  gemini_key,
+                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
+                  1000000);
+    }
+    
+    // X.AI models - prefer OpenRouter if available
+    if (openrouter_key) {
+        ADD_MODEL("grok-4", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "x-ai/grok-4",
+                  openrouter_key,
+                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  131072);  // 131k tokens
+    } else if (xai_key) {
+        // Fall back to direct X.AI API
+        ADD_MODEL("grok-4", 
+                  "https://api.x.ai/v1/chat/completions",
+                  "grok-4",
+                  xai_key,
+                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
+                  131072);  // 131k tokens
+    }
+    
+    // OpenRouter-exclusive models
+    if (openrouter_key) {
 
+         ADD_MODEL("deepseek-r1", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "deepseek/deepseek-r1-0528",
+                  openrouter_key,
+                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  163840);
+
+        ADD_MODEL("qwen3-thinking", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "qwen/qwen3-235b-a22b-thinking-2507",
+                  openrouter_key,
+                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  256000);
+
+        ADD_MODEL("glm-4.5", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "z-ai/glm-4.5",
+                  openrouter_key,
+                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  131072);
+        
+    }
+    
+    ADD_MODEL("local/qwen3-30b", 
+              "http://localhost:11434/v1/chat/completions",
+              "qwen3:30b",
+              "ollama",
+              "{\"stream\":true}",
+              256000); 
+    
+    #undef ADD_MODEL
+    
     return config;
 }
 
@@ -197,7 +231,7 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
         cJSON *api_key_env = cJSON_GetObjectItem(model_obj, "api_key_env");
         cJSON *params = cJSON_GetObjectItem(model_obj, "params");
         cJSON *model = cJSON_GetObjectItem(model_obj, "model");
-        cJSON *max_context_bytes = cJSON_GetObjectItem(model_obj, "max_context_bytes");
+        cJSON *max_tokens = cJSON_GetObjectItem(model_obj, "max_tokens");
         
         if (!type || !cJSON_IsString(type)) {
             if (error) {
@@ -209,11 +243,11 @@ static model_config_t *load_models_from_file(const char *path, char **error) {
         // Store model name
         config->models[index].name = gc_strdup(&gc, model_name);
         
-        // Store max context bytes if provided, otherwise use default
-        if (max_context_bytes && cJSON_IsNumber(max_context_bytes)) {
-            config->models[index].max_context_bytes = (size_t)max_context_bytes->valuedouble;
+        // Store max tokens if provided, otherwise use default
+        if (max_tokens && cJSON_IsNumber(max_tokens)) {
+            config->models[index].max_tokens = (size_t)max_tokens->valuedouble;
         } else {
-            config->models[index].max_context_bytes = 512000; // Default ~128K tokens * 4 bytes/token
+            config->models[index].max_tokens = 128000;
         }
         
         // Handle different model types
@@ -290,45 +324,49 @@ static char *get_config_path(void) {
 }
 
 model_config_t *init_models(char **error) {
-    char *config_path = get_config_path();
-    
-    if (!config_path) {
-        if (error) {
-            *error = gc_strdup(&gc, "Failed to determine config path");
-        }
-        return NULL;
-    }
-    
     model_config_t *models = NULL;
+    char *load_error = NULL;
     
-    int exists = file_exists(config_path);
-    if (exists == -1) {
-        // Error accessing file
-        if (error) {
-            *error = gc_asprintf(&gc, "Failed to access config file %s: %s", config_path, strerror(errno));
-        }
-        return NULL;
-    } else if (exists == 0) {
-        // File doesn't exist, create defaults
-        models = create_default_models();
-        if (!models) {
-            if (error) {
-                *error = gc_strdup(&gc, "Failed to create default models");
+    // First, check MINICODER_MODEL_CONFIG environment variable
+    const char *env_config = getenv("MINICODER_MODEL_CONFIG");
+    if (env_config && strlen(env_config) > 0) {
+        int exists = file_exists(env_config);
+        if (exists == 1) {
+            models = load_models_from_file(env_config, &load_error);
+            if (models) {
+                return models;
             }
-            return NULL;
+            // Continue to other locations if this fails
         }
-        return models;
     }
     
-    char *load_error = NULL;
-    models = load_models_from_file(config_path, &load_error);
+    // Second, check XDG_CONFIG_HOME or ~/.config
+    char *config_path = get_config_path();
+    if (config_path) {
+        int exists = file_exists(config_path);
+        if (exists == 1) {
+            models = load_models_from_file(config_path, &load_error);
+            if (models) {
+                return models;
+            }
+        }
+    }
+    
+    // Third, check /etc/minicoder/models.json
+    const char *etc_config = "/etc/minicoder/models.json";
+    int exists = file_exists(etc_config);
+    if (exists == 1) {
+        models = load_models_from_file(etc_config, &load_error);
+        if (models) {
+            return models;
+        }
+    }
+    
+    // If no config files found anywhere, create defaults
+    models = create_default_models();
     if (!models) {
         if (error) {
-            if (load_error) {
-                *error = load_error;
-            } else {
-                *error = gc_strdup(&gc, "Failed to parse JSON config file");
-            }
+            *error = gc_strdup(&gc, "Failed to create default models");
         }
         return NULL;
     }
@@ -848,6 +886,11 @@ static char *openai_completion(model_t *model, const char *prompt, const model_c
     cJSON_AddStringToObject(message, "content", prompt);
     cJSON_AddItemToArray(messages, message);
     cJSON_AddItemToObject(request_json, "messages", messages);
+    
+    // Add max_tokens to ensure OpenRouter respects our context requirements
+    if (model->max_tokens > 0) {
+        cJSON_AddNumberToObject(request_json, "max_tokens", (double)model->max_tokens);
+    }
     
     // Add additional parameters if provided
     if (model->config.openai.params) {

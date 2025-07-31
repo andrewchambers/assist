@@ -6,6 +6,8 @@ minicoder-model-config - AI model configuration file format for minicoder(1)
 
 # SYNOPSIS
 
+$MINICODER_MODEL_CONFIG
+$XDG_CONFIG_HOME/minicoder/models.json
 ~/.config/minicoder/models.json
 /etc/minicoder/models.json
 
@@ -15,9 +17,10 @@ The *minicoder* command uses JSON configuration files to define available AI mod
 
 Configuration files are searched in the following order:
 
-1. User configuration: *~/.config/minicoder/models.json*
-2. System configuration: */etc/minicoder/models.json*
-3. Built-in defaults (if no configuration files exist)
+1. Environment variable: *$MINICODER_MODEL_CONFIG* (if set)
+2. User configuration: *$XDG_CONFIG_HOME/minicoder/models.json* (or *~/.config/minicoder/models.json* if XDG_CONFIG_HOME is not set)
+3. System configuration: */etc/minicoder/models.json*
+4. Built-in defaults (if no configuration files exist)
 
 The first model defined in the configuration file becomes the default model when no *--model* option is specified.
 
@@ -167,6 +170,12 @@ If no configuration file is found, *minicoder* uses built-in models based on ava
 The first model in the list becomes the default when no --model option is specified.
 
 # ENVIRONMENT VARIABLES
+
+*MINICODER_MODEL_CONFIG*
+	Path to a custom model configuration file. Takes precedence over all other configuration locations.
+
+*XDG_CONFIG_HOME*
+	Base directory for user-specific configuration files. If set, minicoder looks for *$XDG_CONFIG_HOME/minicoder/models.json*.
 
 API keys can be specified via environment variables using the *api_key_env* field. Common variables:
 

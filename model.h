@@ -18,7 +18,9 @@ typedef struct {
 typedef struct {
     char *name;
     model_type_t type;
-    size_t max_context_bytes;  // Maximum context size in bytes (approximate)
+    size_t max_tokens;         // Maximum context window in tokens (input + output combined)
+    char *provider;            // Provider name (e.g., "OpenAI", "Anthropic", "Google")
+    char *description;         // Brief description of the model
     union {
         openai_model_t openai;
     } config;
