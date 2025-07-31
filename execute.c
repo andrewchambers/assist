@@ -259,7 +259,7 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     temp_dir = gc_strdup(&gc, temp_dir);
     
     // Get current executable path
-    if (!g_executable_path[0]) {
+    if (!g_executable_path || !g_executable_path[0]) {
         remove_directory(temp_dir);
         return gc_strdup(&gc, "Error: Failed to get executable path");
     }

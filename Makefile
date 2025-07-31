@@ -39,7 +39,7 @@ www/minicoder-model-config.5.html: doc/minicoder-model-config.5 www/style.css
 
 install: minicoder $(MAN_PAGES)
 	install -Dm755 minicoder $(DESTDIR)$(PREFIX)/bin/minicoder
-	install -Dm644 doc/minicoder.1 $(DESTDIR)$(PREFIX)/share/man/man1/assist.1
+	install -Dm644 doc/minicoder.1 $(DESTDIR)$(PREFIX)/share/man/man1/minicoder.1
 	install -Dm644 doc/minicoder-model-config.5 $(DESTDIR)$(PREFIX)/share/man/man5/minicoder-model-config.5
 
 clean:

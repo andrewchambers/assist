@@ -561,7 +561,7 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
                 if (strncmp(line, "data: ", 6) == 0) {
 
                     // We must dup the string for gc root reasons.
-                    const char *data = gc_strdup(&gc, line + 6);
+                    const char *data = line + 6;
                     
                     // Check for [DONE] message
                     if (strcmp(data, "[DONE]") == 0) {
@@ -641,8 +641,12 @@ static size_t streaming_write_callback(void *contents, size_t size, size_t nmemb
     if (line_start < buffer_len) {
         memmove(buffer, buffer + line_start, buffer_len - line_start);
         state->line_buffer.size = buffer_len - line_start;
+        // Add null terminator after the moved data
+        buffer[state->line_buffer.size] = '\0';
     } else {
         state->line_buffer.size = 0;
+        // Ensure buffer is null-terminated even when empty
+        buffer[0] = '\0';
     }
     
     return realsize;
