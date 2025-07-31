@@ -57,8 +57,8 @@ static model_config_t *create_default_models(void) {
                   "openai/o3",
                   openrouter_key,
                   "{"
-                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"provider\":{\"only\":[\"OpenAI\"]}"
                   "}",
                   200000);
@@ -69,8 +69,8 @@ static model_config_t *create_default_models(void) {
                   "openai/o3-pro",
                   openrouter_key,
                   "{"
-                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"provider\":{\"only\":[\"OpenAI\"]}"
                   "}",
                   200000);
@@ -79,8 +79,8 @@ static model_config_t *create_default_models(void) {
                   "openai/o4-mini",
                   openrouter_key,
                   "{"
-                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"provider\":{\"only\":[\"OpenAI\"]}"
                   "}",
                   200000);
@@ -93,8 +93,8 @@ static model_config_t *create_default_models(void) {
                   "o4-mini",
                   openai_key,
                   "{"
-                    "\"reasoning_effort\":\"high\","
-                    "\"stream\":true"
+                    "\"stream\":true,"
+                    "\"reasoning_effort\":\"high\""
                   "}",
                   200000);
         
@@ -103,8 +103,8 @@ static model_config_t *create_default_models(void) {
                   "o3",
                   openai_key,
                   "{"
-                    "\"reasoning_effort\":\"high\","
-                    "\"stream\":true"
+                    "\"stream\":true,"
+                    "\"reasoning_effort\":\"high\""
                   "}",
                   200000);
     }
@@ -116,8 +116,8 @@ static model_config_t *create_default_models(void) {
                   "google/gemini-2.5-pro",
                   openrouter_key,
                   "{"
-                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"provider\":{\"only\":[\"Google\"]}"
                   "}",
                   1000000);
@@ -128,8 +128,8 @@ static model_config_t *create_default_models(void) {
                   "google/gemini-2.5-pro",
                   gemini_key,
                   "{"
-                    "\"reasoning_effort\":\"high\","
-                    "\"stream\":true"
+                    "\"stream\":true,"
+                    "\"reasoning_effort\":\"high\""
                   "}",
                   1000000);
     }
@@ -141,8 +141,8 @@ static model_config_t *create_default_models(void) {
                   "x-ai/grok-4",
                   openrouter_key,
                   "{"
-                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"provider\":{\"only\":[\"X.AI\"]}"
                   "}",
                   131072);
@@ -153,8 +153,8 @@ static model_config_t *create_default_models(void) {
                   "grok-4",
                   xai_key,
                   "{"
-                    "\"reasoning_effort\":\"high\","
-                    "\"stream\":true"
+                    "\"stream\":true,"
+                    "\"reasoning_effort\":\"high\""
                   "}",
                   131072);
     }
@@ -167,8 +167,8 @@ static model_config_t *create_default_models(void) {
                   "deepseek/deepseek-r1-0528",
                   openrouter_key,
                   "{"
-                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"provider\":{\"only\":[\"DeepSeek\"]}"
                   "}",
                   163840);
@@ -178,11 +178,32 @@ static model_config_t *create_default_models(void) {
                   "z-ai/glm-4.5",
                   openrouter_key,
                   "{"
-                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
                     "\"provider\":{\"only\":[\"Z.AI\"]}"
                   "}",
                   131072);
+
+        ADD_MODEL("sonnet", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "anthropic/claude-sonnet-4",
+                  openrouter_key,
+                  "{"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"Anthropic\"]}"
+                  "}",
+                  200000);
+
+        ADD_MODEL("opus", 
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "anthropic/claude-opus-4",
+                  openrouter_key,
+                  "{"
+                    "\"stream\":true,"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"provider\":{\"only\":[\"Anthropic\"]}"
+                  "}",
+                  200000);
         
     }
     
