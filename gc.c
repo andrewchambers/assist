@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <setjmp.h>
 
 // ---- Tunables --------------------------------------------------------------
 
@@ -21,6 +22,23 @@ static int entry_compare(const void *a, const void *b) {
     return 0;
 }
 
+// Comparison function for bsearch - finds the allocation containing ptr
+static int find_entry_compare(const void *key, const void *entry) {
+    void *search_ptr = *(void * const *)key;
+    const gc_entry *e = (const gc_entry *)entry;
+    
+    void *alloc_start = e->ptr;
+    void *alloc_end = (char*)alloc_start + e->size;
+    
+    if (search_ptr < alloc_start) {
+        return -1;  // search_ptr is before this entry
+    } else if (search_ptr >= alloc_end) {
+        return 1;   // search_ptr is after this entry
+    } else {
+        return 0;   // search_ptr is within this entry
+    }
+}
+
 // Binary search to find entry by pointer (supports interior pointers)
 static gc_entry* find_entry(gc_state *gc, void *ptr) {
     if (gc->alloc_count == 0) return NULL;
@@ -32,38 +50,9 @@ static gc_entry* find_entry(gc_state *gc, void *ptr) {
         return NULL;  // Pointer is outside heap range
     }
     
-    // Binary search to find the allocation containing this pointer
-    size_t left = 0;
-    size_t right = gc->alloc_count;
-    
-    while (left < right) {
-        size_t mid = left + (right - left) / 2;
-        void *alloc_start = gc->allocs[mid].ptr;
-        void *alloc_end = (char*)alloc_start + gc->allocs[mid].size;
-        
-        if (ptr >= alloc_start && ptr < alloc_end) {
-            // Found it - ptr is inside this allocation
-            return &gc->allocs[mid];
-        } else if (ptr < alloc_start) {
-            right = mid;
-        } else {
-            // ptr >= alloc_end
-            left = mid + 1;
-        }
-    }
-    
-    // Special case: check if ptr might be in the last allocation
-    // (needed when ptr == end of last allocation)
-    if (left > 0) {
-        size_t last = left - 1;
-        void *alloc_start = gc->allocs[last].ptr;
-        void *alloc_end = (char*)alloc_start + gc->allocs[last].size;
-        if (ptr >= alloc_start && ptr < alloc_end) {
-            return &gc->allocs[last];
-        }
-    }
-    
-    return NULL;
+    // Use standard library bsearch
+    return (gc_entry*)bsearch(&ptr, gc->allocs, gc->alloc_count, 
+                              sizeof(gc_entry), find_entry_compare);
 }
 
 // Grow the allocations array when needed
@@ -135,6 +124,8 @@ void gc_init(gc_state *gc, void *stack_bottom) {
     gc->roots = (gc_root*)malloc(gc->root_capacity * sizeof(gc_root));
     if (!gc->roots) { fprintf(stderr, "gc_init: OOM (roots)\n"); exit(1); }
     gc->root_count = 0;
+    
+    gc->debug_stress = 0;  // Default: stress testing disabled
 }
 
 void gc_cleanup(gc_state *gc) {
@@ -146,6 +137,7 @@ void gc_cleanup(gc_state *gc) {
 }
 
 void gc_collect(gc_state *gc) {
+    
     // First, sort the allocations array for binary search
     qsort(gc->allocs, gc->alloc_count, sizeof(gc_entry), entry_compare);
     
@@ -153,6 +145,15 @@ void gc_collect(gc_state *gc) {
     for (size_t i = 0; i < gc->alloc_count; i++)
         gc->allocs[i].marked = 0;
 
+    
+    // Save registers using setjmp and scan them
+    jmp_buf regs;
+    setjmp(regs);
+    
+    // Scan the jmp_buf for pointers
+    // jmp_buf is an array type, so we scan it as a memory region
+    scan_range_for_ptrs(gc, &regs, (char*)&regs + sizeof(regs));
+    
     // mark: stack + roots (and contents)
     scan_stack(gc);
     for (size_t i = 0; i < gc->root_count; i++) {
@@ -163,6 +164,7 @@ void gc_collect(gc_state *gc) {
         scan_range_for_ptrs(gc, r->ptr, (char*)r->ptr + r->size);
     }
 
+    
     // sweep: compact array by removing unmarked entries
     size_t write_pos = 0;
     size_t new_bytes = 0;
@@ -183,14 +185,22 @@ void gc_collect(gc_state *gc) {
     }
     
     // Update counts
+    size_t old_count = gc->alloc_count;
+    size_t old_bytes = gc->allocated_bytes;
     gc->alloc_count = write_pos;
     gc->allocated_bytes = new_bytes;
+
 
     if (gc->allocated_bytes > (gc->threshold * 3) / 4) gc->threshold *= 2;
 }
 
 void* gc_malloc(gc_state *gc, size_t size) {
-    if (gc->allocated_bytes + size > gc->threshold) gc_collect(gc);
+    // Debug stress mode: force collection before every allocation
+    if (gc->debug_stress) {
+        gc_collect(gc);
+    } else if (gc->allocated_bytes + size > gc->threshold) {
+        gc_collect(gc);
+    }
 
     void *p = malloc(size);
     if (!p) { gc_collect(gc); p = malloc(size); }

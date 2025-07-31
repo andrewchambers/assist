@@ -241,6 +241,13 @@ int main(int argc, char *argv[]) {
     // Initialize the garbage collector with proper stack bottom
     gc_init(&gc, stack_bottom);
     
+    // Check for debug stress testing environment variable
+    const char *stress_env = getenv("MINICODER_DEBUG_STRESS_GC");
+    if (stress_env && strcmp(stress_env, "1") == 0) {
+        gc.debug_stress = 1;
+        fprintf(stderr, "GC: Debug stress testing enabled (collecting on every allocation)\n");
+    }
+    
     // Initialize cJSON to use gc memory management
     cJSON_Hooks hooks;
     hooks.malloc_fn = cjson_malloc_wrapper;

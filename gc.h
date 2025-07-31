@@ -83,6 +83,9 @@ typedef struct gc_state {
     gc_root *roots;             // Array of registered roots
     size_t root_count;          // Number of registered roots
     size_t root_capacity;       // Capacity of roots array
+    
+    // Debug flags
+    int debug_stress;           // Force GC on every allocation
 } gc_state;
 
 // Initialize GC with stack bottom
