@@ -581,14 +581,14 @@ AgentResult run_agent(AgentArgs *args) {
         // Extract and execute script if present
         char *exec_script = extract_exec_script(response);
         if (exec_script) {
-            const char *executing_message = "Executing agent script:\n";
+            const char *executing_message = "Executing agent script...\n";
             fprintf(args->output, "%s", executing_message);
             string_builder_append_str(&iteration_sb, executing_message);
             
             // Ensure cmd_state has the latest working directory
             cmd_state.working_dir = state.working_dir;
             
-            char *script_output = execute_script(exec_script, &state, &cmd_state);
+            char *script_output = execute_agent_script(exec_script, &state, &cmd_state);
             if (script_output) {
                 string_builder_append_str(&iteration_sb, script_output);
             }

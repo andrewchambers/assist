@@ -18,115 +18,43 @@
 
 extern gc_state gc;
 
-static int exec_command(const char *command, char **out_output, int forward_output) {
-    if (!command) {
-        return 0;  // No command, consider it a success
+// Escape single quotes in a string for safe inclusion in shell single-quoted strings
+// Returns a new string with ' replaced by '\''
+static char* shell_escape_single_quotes(const char *str) {
+    if (!str) return NULL;
+    
+    // Count single quotes to determine output size
+    int quote_count = 0;
+    for (const char *p = str; *p; p++) {
+        if (*p == '\'') quote_count++;
     }
     
-    if (out_output) {
-        *out_output = NULL;
+    // If no quotes, return copy of original
+    if (quote_count == 0) {
+        return gc_strdup(&gc, str);
     }
     
-    // Get shell from environment or use default
-    const char *shell = getenv("MINICODER_SHELL");
-    if (!shell) {
-        shell = "/bin/sh";
-    }
+    // Allocate space: original length + (3 extra chars per quote) + null terminator
+    int new_len = strlen(str) + (quote_count * 3) + 1;
+    char *result = gc_malloc(&gc, new_len);
     
-    // Set up shell arguments
-    char *shell_args[4];
-    shell_args[0] = (char *)shell;
-    shell_args[1] = "-c";
-    shell_args[2] = (char *)command;
-    shell_args[3] = NULL;
-    
-    // Create pipe for capturing output
-    int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        if (out_output) {
-            *out_output = gc_asprintf(&gc, "Failed to create pipe: %s", strerror(errno));
-        }
-        return -1;
-    }
-    
-    pid_t pid = fork();
-    if (pid == -1) {
-        if (out_output) {
-            *out_output = gc_asprintf(&gc, "Failed to fork: %s", strerror(errno));
-        }
-        close(pipefd[0]);
-        close(pipefd[1]);
-        return -1;
-    }
-    
-    if (pid == 0) {
-        // Child process
-        close(pipefd[0]);  // Close read end
-        
-        // Redirect stdin to /dev/null to prevent reading from terminal
-        int devnull = open("/dev/null", O_RDONLY);
-        if (devnull != -1) {
-            dup2(devnull, STDIN_FILENO);
-            close(devnull);
-        }
-        
-        // Redirect stdout and stderr to pipe
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
-            _exit(127);
-        }
-        if (dup2(pipefd[1], STDERR_FILENO) == -1) {
-            _exit(127);
-        }
-        close(pipefd[1]);  // Close original write end
-        
-        // Execute command
-        execvp(shell, shell_args);
-        // If we get here, execvp failed
-        _exit(127);
-    }
-    
-    // Parent process
-    close(pipefd[1]);  // Close write end
-    
-    // Read output from pipe
-    string_builder_t sb;
-    string_builder_init(&sb, &gc, 4096);
-    
-    char buffer[4096];
-    ssize_t bytes_read;
-    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytes_read] = '\0';
-        string_builder_append_str(&sb, buffer);
-        
-        // Forward output to parent terminal if requested
-        if (forward_output) {
-            if (write(STDOUT_FILENO, buffer, bytes_read) == -1) {
-                // Ignore write errors for output forwarding
-            }
+    char *out = result;
+    for (const char *p = str; *p; p++) {
+        if (*p == '\'') {
+            // Replace ' with '\''
+            *out++ = '\'';
+            *out++ = '\\';
+            *out++ = '\'';
+            *out++ = '\'';
+        } else {
+            *out++ = *p;
         }
     }
-    close(pipefd[0]);
+    *out = '\0';
     
-    // Wait for child process
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        if (out_output) {
-            *out_output = gc_asprintf(&gc, "Failed to wait for child process: %s", strerror(errno));
-        }
-        return -1;
-    }
-    
-    if (out_output) {
-        *out_output = string_builder_finalize(&sb);
-    }
-    
-    // Check exit status
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    
-    return -1;  // Process terminated abnormally
+    return result;
 }
+
 
 // Write the current state to a JSON file
 static int write_state_json(const char *path, AgentCommandState *cmd_state) {
@@ -248,7 +176,7 @@ static void read_state_json(const char *path, AgentState *state, AgentCommandSta
     }
 }
 
-char* execute_script(const char *script, AgentState *state, AgentCommandState *cmd_state) {
+char* execute_agent_script(const char *script, AgentState *state, AgentCommandState *cmd_state) {
     // Create temporary directory
     char temp_template[] = "/tmp/minicoder-XXXXXX";
     char *temp_dir = mkdtemp(temp_template);
@@ -305,10 +233,14 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
         current_path = "/usr/local/bin:/usr/bin:/bin";  // Fallback default
     }
     
+    // Escape paths for safe shell inclusion
+    char *escaped_state_path = shell_escape_single_quotes(state_path);
+    char *escaped_temp_dir = shell_escape_single_quotes(temp_dir);
+    char *escaped_current_path = shell_escape_single_quotes(current_path);
+    
     // Write script with proper shebang and settings
-    if (fprintf(f, "#!/bin/sh\n") < 0 ||
-        fprintf(f, "export MINICODER_STATE_FILE='%s'\n", state_path) < 0 ||
-        fprintf(f, "export PATH='%s/bin:%s'\n", temp_dir, current_path) < 0 || 
+    if (fprintf(f, "export MINICODER_STATE_FILE='%s'\n", escaped_state_path) < 0 ||
+        fprintf(f, "export PATH='%s/bin:%s'\n", escaped_temp_dir, escaped_current_path) < 0 || 
         fprintf(f, "set -ex\n") < 0) {
         fclose(f);
         remove_directory(temp_dir);
@@ -316,7 +248,8 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     }
     
     if (cmd_state->working_dir) {
-        if (fprintf(f, "cd '%s'\n", cmd_state->working_dir) < 0) {
+        char *escaped_working_dir = shell_escape_single_quotes(cmd_state->working_dir);
+        if (fprintf(f, "cd '%s'\n", escaped_working_dir) < 0) {
             fclose(f);
             remove_directory(temp_dir);
             return gc_strdup(&gc, "Error: Failed to write working directory change");
@@ -341,12 +274,92 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     }
     
     // Execute the script
-    char *output = NULL;
-    int exit_code = exec_command(script_path, &output, 1);
-    if (exit_code < 0) {
+    // Get shell from environment or use default
+    const char *shell = getenv("MINICODER_SHELL");
+    if (!shell) {
+        shell = "/bin/sh";
+    }
+    
+    // Set up shell arguments to execute the script file
+    char *shell_args[3];
+    shell_args[0] = (char *)shell;
+    shell_args[1] = script_path;
+    shell_args[2] = NULL;
+    
+    // Create pipe for capturing output
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
         remove_directory(temp_dir);
-        return gc_asprintf(&gc, "Error: Failed to execute script: %s", 
-                          output ? output : "Unknown error");
+        return gc_asprintf(&gc, "Error: Failed to create pipe: %s", strerror(errno));
+    }
+    
+    pid_t pid = fork();
+    if (pid == -1) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        remove_directory(temp_dir);
+        return gc_asprintf(&gc, "Error: Failed to fork: %s", strerror(errno));
+    }
+    
+    if (pid == 0) {
+        // Child process
+        close(pipefd[0]);  // Close read end
+        
+        // Redirect stdin to /dev/null to prevent reading from terminal
+        int devnull = open("/dev/null", O_RDONLY);
+        if (devnull != -1) {
+            dup2(devnull, STDIN_FILENO);
+            close(devnull);
+        }
+        
+        // Redirect stdout and stderr to pipe
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            _exit(127);
+        }
+        if (dup2(pipefd[1], STDERR_FILENO) == -1) {
+            _exit(127);
+        }
+        close(pipefd[1]);  // Close original write end
+        
+        // Execute script
+        execvp(shell, shell_args);
+        // If we get here, execvp failed
+        _exit(127);
+    }
+    
+    // Parent process
+    close(pipefd[1]);  // Close write end
+    
+    // Read output from pipe
+    string_builder_t sb;
+    string_builder_init(&sb, &gc, 4096);
+    
+    char buffer[4096];
+    ssize_t bytes_read;
+    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[bytes_read] = '\0';
+        string_builder_append_str(&sb, buffer);
+        
+        // Forward output to parent terminal
+        if (write(STDOUT_FILENO, buffer, bytes_read) == -1) {
+            // Ignore write errors for output forwarding
+        }
+    }
+    close(pipefd[0]);
+    
+    // Wait for child process
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        remove_directory(temp_dir);
+        return gc_asprintf(&gc, "Error: Failed to wait for child process: %s", strerror(errno));
+    }
+    
+    char *output = string_builder_finalize(&sb);
+    int exit_code = -1;
+    
+    // Check exit status
+    if (WIFEXITED(status)) {
+        exit_code = WEXITSTATUS(status);
     }
     
     // Read state back
@@ -359,16 +372,16 @@ char* execute_script(const char *script, AgentState *state, AgentCommandState *c
     }
     
     // Build result
-    string_builder_t sb;
-    string_builder_init(&sb, &gc, 1024);
+    string_builder_t result_sb;
+    string_builder_init(&result_sb, &gc, 1024);
     
     if (output) {
-        string_builder_append_str(&sb, output);
+        string_builder_append_str(&result_sb, output);
     }
     
     if (exit_code != 0 && !state->done && !state->aborted) {
-        string_builder_append_fmt(&sb, "\n[Script exited with code %d]\n", exit_code);
+        string_builder_append_fmt(&result_sb, "\n[Script exited with code %d]\n", exit_code);
     }
     
-    return string_builder_finalize(&sb);
+    return string_builder_finalize(&result_sb);
 }
