@@ -13,27 +13,24 @@
  * 
  * Features:
  * - Automatic memory management via mark-and-sweep collection
- * - Tracks all allocations in a hash table
  * - Conservative stack scanning to find roots
+*  - Handles interior pointers.
  * - Support for explicit root registration
  * 
  * Limitations:
  * - Conservative: May keep dead memory alive if integers look like pointers
- * - No interior pointer support: Only pointers to the start of allocations are recognized
  * - Not thread-safe (single-threaded use only)
  * - May not work with some optimizations that hide pointers
  */
 
-// Initial hash table size (must be power of 2)
-#define GC_INITIAL_HASH_SIZE 256
-#define GC_MAX_LOAD_FACTOR 0.75
+// Initial allocation array size
+#define GC_INITIAL_ALLOC_SIZE 256
 
 // GC allocation entry
 typedef struct gc_entry {
     void *ptr;              // User pointer (key)
     size_t size;            // Allocation size
     uint8_t marked;         // Mark bit
-    uint8_t occupied;       // Slot is occupied
 } gc_entry;
 
 // GC root entry
@@ -75,9 +72,9 @@ typedef struct gc_root {
 
 // GC state
 typedef struct gc_state {
-    gc_entry *hash_table;       // Hash table of allocations (array)
-    size_t hash_size;           // Current hash table size
-    size_t entry_count;         // Number of entries in hash table
+    gc_entry *allocs;           // Array of allocations (sorted by ptr)
+    size_t alloc_count;         // Number of allocations
+    size_t alloc_capacity;      // Capacity of allocations array
     size_t allocated_bytes;     // Total allocated memory
     size_t threshold;           // Collection threshold
     void *stack_bottom;         // Bottom of stack for scanning

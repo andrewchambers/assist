@@ -10,51 +10,82 @@
 
 #define DEFAULT_GC_THRESHOLD (1024 * 1024)
 
-// ---- Hash table for allocations -------------------------------------------
+// ---- Array-based allocation tracking ---------------------------------------
 
-static inline size_t hash_ptr(void *p, size_t n) {
-    uintptr_t x = (uintptr_t)p;
-    x ^= x >> 33; x *= 0xff51afd7ed558ccdULL;
-    x ^= x >> 33; x *= 0xc4ceb9fe1a85ec53ULL;
-    x ^= x >> 33;
-    return (size_t)x & (n - 1);
+// Comparison function for sorting gc_entry by pointer
+static int entry_compare(const void *a, const void *b) {
+    const gc_entry *ea = (const gc_entry *)a;
+    const gc_entry *eb = (const gc_entry *)b;
+    if (ea->ptr < eb->ptr) return -1;
+    if (ea->ptr > eb->ptr) return 1;
+    return 0;
 }
 
+// Binary search to find entry by pointer (supports interior pointers)
 static gc_entry* find_entry(gc_state *gc, void *ptr) {
-    size_t i = hash_ptr(ptr, gc->hash_size), start = i;
-    while (gc->hash_table[i].occupied) {
-        if (gc->hash_table[i].ptr == ptr) return &gc->hash_table[i];
-        i = (i + 1) & (gc->hash_size - 1);
-        if (i == start) break;
+    if (gc->alloc_count == 0) return NULL;
+    
+    // Fast path: check if pointer is within the range of all allocations
+    void *min_ptr = gc->allocs[0].ptr;
+    void *max_ptr = (char*)gc->allocs[gc->alloc_count - 1].ptr + gc->allocs[gc->alloc_count - 1].size;
+    if (ptr < min_ptr || ptr >= max_ptr) {
+        return NULL;  // Pointer is outside heap range
     }
+    
+    // Binary search to find the allocation containing this pointer
+    size_t left = 0;
+    size_t right = gc->alloc_count;
+    
+    while (left < right) {
+        size_t mid = left + (right - left) / 2;
+        void *alloc_start = gc->allocs[mid].ptr;
+        void *alloc_end = (char*)alloc_start + gc->allocs[mid].size;
+        
+        if (ptr >= alloc_start && ptr < alloc_end) {
+            // Found it - ptr is inside this allocation
+            return &gc->allocs[mid];
+        } else if (ptr < alloc_start) {
+            right = mid;
+        } else {
+            // ptr >= alloc_end
+            left = mid + 1;
+        }
+    }
+    
+    // Special case: check if ptr might be in the last allocation
+    // (needed when ptr == end of last allocation)
+    if (left > 0) {
+        size_t last = left - 1;
+        void *alloc_start = gc->allocs[last].ptr;
+        void *alloc_end = (char*)alloc_start + gc->allocs[last].size;
+        if (ptr >= alloc_start && ptr < alloc_end) {
+            return &gc->allocs[last];
+        }
+    }
+    
     return NULL;
 }
 
-static void resize_table(gc_state *gc) {
-    size_t oldn = gc->hash_size, newn = oldn * 2;
-    gc_entry *oldt = gc->hash_table, *newt = (gc_entry*)calloc(newn, sizeof(gc_entry));
-    if (!newt) {
-        fprintf(stderr, "resize_table: OOM\n");
+// Grow the allocations array when needed
+static void grow_alloc_array(gc_state *gc) {
+    size_t new_capacity = gc->alloc_capacity * 2;
+    gc_entry *new_allocs = (gc_entry*)realloc(gc->allocs, new_capacity * sizeof(gc_entry));
+    if (!new_allocs) {
+        fprintf(stderr, "grow_alloc_array: OOM\n");
         exit(1);
     }
-
-    for (size_t i = 0; i < oldn; i++) if (oldt[i].occupied) {
-        size_t j = hash_ptr(oldt[i].ptr, newn);
-        while (newt[j].occupied) j = (j + 1) & (newn - 1);
-        newt[j] = oldt[i];
-    }
-    gc->hash_table = newt;
-    gc->hash_size  = newn;
-    free(oldt);
+    gc->allocs = new_allocs;
+    gc->alloc_capacity = new_capacity;
 }
 
+// Add a new allocation entry (unsorted append)
 static void add_entry(gc_state *gc, void *ptr, size_t size) {
-    if (gc->entry_count >= gc->hash_size * GC_MAX_LOAD_FACTOR) resize_table(gc);
-    size_t i = hash_ptr(ptr, gc->hash_size);
-    while (gc->hash_table[i].occupied) i = (i + 1) & (gc->hash_size - 1);
-    gc->hash_table[i] = (gc_entry){ .ptr = ptr, .size = size, .marked = 0, .occupied = 1 };
+    if (gc->alloc_count >= gc->alloc_capacity) {
+        grow_alloc_array(gc);
+    }
+    gc->allocs[gc->alloc_count] = (gc_entry){ .ptr = ptr, .size = size, .marked = 0 };
     gc->allocated_bytes += size;
-    gc->entry_count++;
+    gc->alloc_count++;
 }
 
 // ---- Mark helpers ----------------------------------------------------------
@@ -70,6 +101,8 @@ static void scan_range_for_ptrs(gc_state *gc, void *start, void *end) {
 }
 
 static bool mark_from_ptr(gc_state *gc, void *ptr) {
+    // Array must be sorted for binary search to work
+    // During gc_collect, array is already sorted
     gc_entry *e = find_entry(gc, ptr);
     if (!e || e->marked) return e != NULL;
     e->marked = 1;
@@ -90,10 +123,10 @@ static void scan_stack(gc_state *gc) {
 // ---- Public API ------------------------------------------------------------
 
 void gc_init(gc_state *gc, void *stack_bottom) {
-    gc->hash_size = GC_INITIAL_HASH_SIZE;
-    gc->hash_table = (gc_entry*)calloc(gc->hash_size, sizeof(gc_entry));
-    if (!gc->hash_table) { fprintf(stderr, "gc_init: OOM\n"); exit(1); }
-    gc->entry_count = 0;
+    gc->alloc_capacity = GC_INITIAL_ALLOC_SIZE;
+    gc->allocs = (gc_entry*)malloc(gc->alloc_capacity * sizeof(gc_entry));
+    if (!gc->allocs) { fprintf(stderr, "gc_init: OOM\n"); exit(1); }
+    gc->alloc_count = 0;
     gc->allocated_bytes = 0;
     gc->threshold = DEFAULT_GC_THRESHOLD;
     gc->stack_bottom = stack_bottom;
@@ -105,17 +138,20 @@ void gc_init(gc_state *gc, void *stack_bottom) {
 }
 
 void gc_cleanup(gc_state *gc) {
-    for (size_t i = 0; i < gc->hash_size; i++)
-        if (gc->hash_table[i].occupied) free(gc->hash_table[i].ptr);
-    free(gc->hash_table); gc->hash_table = NULL; gc->hash_size = 0;
-    gc->entry_count = 0; gc->allocated_bytes = 0;
+    for (size_t i = 0; i < gc->alloc_count; i++)
+        free(gc->allocs[i].ptr);
+    free(gc->allocs); gc->allocs = NULL; gc->alloc_capacity = 0;
+    gc->alloc_count = 0; gc->allocated_bytes = 0;
     free(gc->roots); gc->roots = NULL; gc->root_count = 0; gc->root_capacity = 0;
 }
 
 void gc_collect(gc_state *gc) {
+    // First, sort the allocations array for binary search
+    qsort(gc->allocs, gc->alloc_count, sizeof(gc_entry), entry_compare);
+    
     // clear marks
-    for (size_t i = 0; i < gc->hash_size; i++)
-        if (gc->hash_table[i].occupied) gc->hash_table[i].marked = 0;
+    for (size_t i = 0; i < gc->alloc_count; i++)
+        gc->allocs[i].marked = 0;
 
     // mark: stack + roots (and contents)
     scan_stack(gc);
@@ -127,47 +163,28 @@ void gc_collect(gc_state *gc) {
         scan_range_for_ptrs(gc, r->ptr, (char*)r->ptr + r->size);
     }
 
-    // sweep and rebuild hash table
-    size_t old_size = gc->hash_size;
-    gc_entry *old_table = gc->hash_table;
-    
-    // Allocate new hash table
-    gc->hash_table = (gc_entry*)calloc(old_size, sizeof(gc_entry));
-    if (!gc->hash_table) {
-        fprintf(stderr, "gc_collect: OOM during rebuild\n");
-        exit(1);
-    }
-    
-    // Reset counts - we'll rebuild them as we copy entries
-    size_t new_count = 0;
+    // sweep: compact array by removing unmarked entries
+    size_t write_pos = 0;
     size_t new_bytes = 0;
     
-    // Copy marked entries to new table and free unmarked ones
-    for (size_t i = 0; i < old_size; i++) {
-        gc_entry *e = &old_table[i];
-        if (e->occupied) {
-            if (e->marked) {
-                // Re-insert marked entry into new table
-                size_t j = hash_ptr(e->ptr, gc->hash_size);
-                while (gc->hash_table[j].occupied) {
-                    j = (j + 1) & (gc->hash_size - 1);
-                }
-                gc->hash_table[j] = *e;
-                new_count++;
-                new_bytes += e->size;
-            } else {
-                // Free unmarked entry
-                free(e->ptr);
+    for (size_t read_pos = 0; read_pos < gc->alloc_count; read_pos++) {
+        gc_entry *e = &gc->allocs[read_pos];
+        if (e->marked) {
+            // Keep marked entry
+            if (write_pos != read_pos) {
+                gc->allocs[write_pos] = *e;
             }
+            write_pos++;
+            new_bytes += e->size;
+        } else {
+            // Free unmarked entry
+            free(e->ptr);
         }
     }
     
     // Update counts
-    gc->entry_count = new_count;
+    gc->alloc_count = write_pos;
     gc->allocated_bytes = new_bytes;
-    
-    // Free old table
-    free(old_table);
 
     if (gc->allocated_bytes > (gc->threshold * 3) / 4) gc->threshold *= 2;
 }
@@ -181,6 +198,9 @@ void* gc_malloc(gc_state *gc, size_t size) {
 
     memset(p, 0, size);
     add_entry(gc, p, size);
+    
+    // Note: Array becomes unsorted after add, but that's OK.
+    // It will be sorted at next gc_collect() before any lookups.
     return p;
 }
 
@@ -193,6 +213,13 @@ void* gc_realloc(gc_state *gc, void *ptr, size_t size) {
     if (size == 0) {
         // If size is 0, just return NULL (let GC handle the cleanup)
         return NULL;
+    }
+    
+    // We need the array to be sorted for lookup - if it's not sorted, sort it now
+    // This can happen if allocations were made since last gc_collect
+    // For now, always sort to be safe (can optimize later with a sorted flag)
+    if (gc->alloc_count > 0) {
+        qsort(gc->allocs, gc->alloc_count, sizeof(gc_entry), entry_compare);
     }
     
     // Find the existing entry
