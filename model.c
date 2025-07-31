@@ -56,22 +56,34 @@ static model_config_t *create_default_models(void) {
                   "https://openrouter.ai/api/v1/chat/completions",
                   "openai/o3",
                   openrouter_key,
-                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
-                  200000);  // 200k tokens
+                  "{"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"OpenAI\"]}"
+                  "}",
+                  200000);
 
                 // o3-pro is OpenRouter exclusive for now due to the endpoint support.
         ADD_MODEL("o3-pro", 
                   "https://openrouter.ai/api/v1/chat/completions",
                   "openai/o3-pro",
                   openrouter_key,
-                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
-                  200000);  // 200k tokens
+                  "{"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"OpenAI\"]}"
+                  "}",
+                  200000);
         ADD_MODEL("o4-mini", 
-          "https://openrouter.ai/api/v1/chat/completions",
-          "openai/o4-mini",
-          openrouter_key,
-          "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
-          200000);  // 200k tokens
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  "openai/o4-mini",
+                  openrouter_key,
+                  "{"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"OpenAI\"]}"
+                  "}",
+                  200000);
         
 
     } else if (openai_key) {
@@ -80,15 +92,21 @@ static model_config_t *create_default_models(void) {
                   "https://api.openai.com/v1/chat/completions",
                   "o4-mini",
                   openai_key,
-                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
-                  200000);  // 200k tokens
+                  "{"
+                    "\"reasoning_effort\":\"high\","
+                    "\"stream\":true"
+                  "}",
+                  200000);
         
         ADD_MODEL("o3", 
                   "https://api.openai.com/v1/chat/completions",
                   "o3",
                   openai_key,
-                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
-                  200000);  // 200k tokens
+                  "{"
+                    "\"reasoning_effort\":\"high\","
+                    "\"stream\":true"
+                  "}",
+                  200000);
     }
     
     // Gemini models - prefer OpenRouter if available
@@ -97,7 +115,11 @@ static model_config_t *create_default_models(void) {
                   "https://openrouter.ai/api/v1/chat/completions",
                   "google/gemini-2.5-pro",
                   openrouter_key,
-                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  "{"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"Google\"]}"
+                  "}",
                   1000000);
     } else if (gemini_key) {
         // Fall back to direct Gemini API
@@ -105,7 +127,10 @@ static model_config_t *create_default_models(void) {
                   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                   "google/gemini-2.5-pro",
                   gemini_key,
-                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
+                  "{"
+                    "\"reasoning_effort\":\"high\","
+                    "\"stream\":true"
+                  "}",
                   1000000);
     }
     
@@ -115,16 +140,23 @@ static model_config_t *create_default_models(void) {
                   "https://openrouter.ai/api/v1/chat/completions",
                   "x-ai/grok-4",
                   openrouter_key,
-                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
-                  131072);  // 131k tokens
+                  "{"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"X.AI\"]}"
+                  "}",
+                  131072);
     } else if (xai_key) {
         // Fall back to direct X.AI API
         ADD_MODEL("grok-4", 
                   "https://api.x.ai/v1/chat/completions",
                   "grok-4",
                   xai_key,
-                  "{\"reasoning_effort\":\"high\",\"stream\":true}",
-                  131072);  // 131k tokens
+                  "{"
+                    "\"reasoning_effort\":\"high\","
+                    "\"stream\":true"
+                  "}",
+                  131072);
     }
     
     // OpenRouter-exclusive models
@@ -134,21 +166,22 @@ static model_config_t *create_default_models(void) {
                   "https://openrouter.ai/api/v1/chat/completions",
                   "deepseek/deepseek-r1-0528",
                   openrouter_key,
-                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  "{"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"DeepSeek\"]}"
+                  "}",
                   163840);
-
-        ADD_MODEL("qwen3-thinking", 
-                  "https://openrouter.ai/api/v1/chat/completions",
-                  "qwen/qwen3-235b-a22b-thinking-2507",
-                  openrouter_key,
-                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
-                  256000);
 
         ADD_MODEL("glm-4.5", 
                   "https://openrouter.ai/api/v1/chat/completions",
                   "z-ai/glm-4.5",
                   openrouter_key,
-                  "{\"reasoning\":{\"effort\":\"high\"},\"stream\":true}",
+                  "{"
+                    "\"reasoning\":{\"effort\":\"high\"},"
+                    "\"stream\":true,"
+                    "\"provider\":{\"only\":[\"Z.AI\"]}"
+                  "}",
                   131072);
         
     }
@@ -157,7 +190,9 @@ static model_config_t *create_default_models(void) {
               "http://localhost:11434/v1/chat/completions",
               "qwen3:30b",
               "ollama",
-              "{\"stream\":true}",
+              "{"
+                "\"stream\":true"
+              "}",
               256000); 
     
     #undef ADD_MODEL
@@ -680,7 +715,35 @@ static char *openai_completion_streaming(model_t *model, const char *prompt, cJS
     
     // Process any remaining data in line buffer
     if (state.line_buffer.size > 0 && !state.done) {
-        // This shouldn't happen with properly formatted SSE, but handle it gracefully
+        // Check if the remaining data is a JSON error response
+        char *buffer_copy = gc_malloc(&gc, state.line_buffer.size + 1);
+        memcpy(buffer_copy, state.line_buffer.data, state.line_buffer.size);
+        buffer_copy[state.line_buffer.size] = '\0';
+        
+        cJSON *error_json = cJSON_Parse(buffer_copy);
+        if (error_json) {
+            // It's a JSON response, likely an error
+            cJSON *error_obj = cJSON_GetObjectItem(error_json, "error");
+            if (error_obj) {
+                cJSON *error_msg = cJSON_GetObjectItem(error_obj, "message");
+                if (error_msg && cJSON_IsString(error_msg)) {
+                    if (error) {
+                        *error = gc_asprintf(&gc, "API error: %s", error_msg->valuestring);
+                    }
+                } else {
+                    if (error) {
+                        *error = gc_strdup(&gc, "API returned an error");
+                    }
+                }
+            } else {
+                if (error) {
+                    *error = gc_strdup(&gc, "Unexpected JSON response instead of SSE stream");
+                }
+            }
+            return NULL;
+        }
+        
+        // Not JSON, so it's incomplete SSE data
         if (error) {
             *error = gc_strdup(&gc, "Incomplete SSE data received");
         }
@@ -887,10 +950,8 @@ static char *openai_completion(model_t *model, const char *prompt, const model_c
     cJSON_AddItemToArray(messages, message);
     cJSON_AddItemToObject(request_json, "messages", messages);
     
-    // Add max_tokens to ensure OpenRouter respects our context requirements
-    if (model->max_tokens > 0) {
-        cJSON_AddNumberToObject(request_json, "max_tokens", (double)model->max_tokens);
-    }
+    // Don't add max_tokens to the request - it's not uniformly supported across providers
+    // and can cause issues. Let each provider handle their own limits.
     
     // Add additional parameters if provided
     if (model->config.openai.params) {
