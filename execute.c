@@ -35,7 +35,7 @@ static char* shell_escape_single_quotes(const char *str) {
     }
     
     // Allocate space: original length + (3 extra chars per quote) + null terminator
-    int new_len = strlen(str) + (quote_count * 3) + 1;
+    size_t new_len = strlen(str) + (quote_count * 3) + 1;
     char *result = gc_malloc(&gc, new_len);
     
     char *out = result;

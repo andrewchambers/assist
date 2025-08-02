@@ -39,7 +39,6 @@ static volatile sig_atomic_t interrupt_received = 0;
 // Signal handler
 static void signal_handler(int sig) {
     interrupt_received = 1;
-    fprintf(stderr, "\nReceived interrupt signal. Shutting down...\n");
 }
 
 
