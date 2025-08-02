@@ -6,12 +6,40 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <setjmp.h>
+#include <time.h>
 
 // ---- Tunables --------------------------------------------------------------
 
-#define DEFAULT_GC_THRESHOLD (1024 * 1024)
+#define DEFAULT_GC_THRESHOLD (512*1024)
+#define GC_INITIAL_ROOTS 16
+#define GC_INITIAL_ALLOC_SIZE 256
+
 
 // ---- Array-based allocation tracking ---------------------------------------
+
+// Compute direct mapped cache index for a pointer
+static size_t dm_cache_idx(gc_state *gc, void *ptr) {
+    // Mix the bits of the pointer for better distribution
+    uintptr_t p = (uintptr_t)ptr;
+    p ^= p >> 16;
+    p *= 0x85ebca6b;
+    p ^= p >> 13;
+    p *= 0xc2b2ae35;
+    p ^= p >> 16;
+    return (size_t)p & gc->cache_mask;
+}
+
+// Round up to next power of 2
+static size_t next_power_of_2(size_t n) {
+    if (n == 0) return 1;
+    
+    // Find the position of the highest set bit
+    size_t power = 1;
+    while (power < n) {
+        power <<= 1;
+    }
+    return power;
+}
 
 // Comparison function for sorting gc_entry by pointer
 static int entry_compare(const void *a, const void *b) {
@@ -49,8 +77,15 @@ static gc_entry* find_entry(gc_state *gc, void *ptr) {
     if (ptr < min_ptr || ptr >= max_ptr) {
         return NULL;  // Pointer is outside heap range
     }
+
+    // Next try direct mapped cache for exact pointer match
+    size_t index = dm_cache_idx(gc, ptr);
+    gc_entry *cached = gc->cache[index];
+    if (cached && cached->ptr == ptr) {
+        return cached;
+    }
     
-    // Use standard library bsearch
+    // Finally, bsearch that takes into account interior pointers.
     return (gc_entry*)bsearch(&ptr, gc->allocs, gc->alloc_count, 
                               sizeof(gc_entry), find_entry_compare);
 }
@@ -83,6 +118,8 @@ static bool mark_from_ptr(gc_state *gc, void *ptr);
 
 static void scan_range_for_ptrs(gc_state *gc, void *start, void *end) {
     void **p = (void**)start, **q = (void**)end;
+    size_t bytes = (char*)end - (char*)start;
+    gc->bytes_scanned += bytes;
     while (p < q) {
         void *cand = *p++;
         if (cand) mark_from_ptr(gc, cand);
@@ -120,12 +157,19 @@ void gc_init(gc_state *gc, void *stack_bottom) {
     gc->threshold = DEFAULT_GC_THRESHOLD;
     gc->stack_bottom = stack_bottom;
 
+    // Initialize cache with minimal size
+    gc->cache_size = 16;  // Minimum cache size
+    gc->cache_mask = gc->cache_size - 1;
+    gc->cache = (gc_entry**)calloc(gc->cache_size, sizeof(gc_entry*));
+    if (!gc->cache) { fprintf(stderr, "gc_init: OOM (cache)\n"); exit(1); }
+
     gc->root_capacity = GC_INITIAL_ROOTS;
     gc->roots = (gc_root*)malloc(gc->root_capacity * sizeof(gc_root));
     if (!gc->roots) { fprintf(stderr, "gc_init: OOM (roots)\n"); exit(1); }
     gc->root_count = 0;
     
     gc->debug_stress = 0;  // Default: stress testing disabled
+    gc->debug_print_stats = 0;  // Default: stats printing disabled
 }
 
 void gc_cleanup(gc_state *gc) {
@@ -133,18 +177,63 @@ void gc_cleanup(gc_state *gc) {
         free(gc->allocs[i].ptr);
     free(gc->allocs); gc->allocs = NULL; gc->alloc_capacity = 0;
     gc->alloc_count = 0; gc->allocated_bytes = 0;
+    free(gc->cache); gc->cache = NULL;
     free(gc->roots); gc->roots = NULL; gc->root_count = 0; gc->root_capacity = 0;
 }
 
+// Helper to get time in microseconds
+static double get_time_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000.0 + ts.tv_nsec / 1000.0;
+}
+
 void gc_collect(gc_state *gc) {
+    // Record stats before collection
+    size_t old_count = gc->alloc_count;
+    size_t old_bytes = gc->allocated_bytes;
+    double start_time = 0;
     
-    // First, sort the allocations array for binary search
+    if (gc->debug_print_stats) {
+        start_time = get_time_us();
+    }
+    
+    // Reset scan counter
+    gc->bytes_scanned = 0;
+    
+    // Phase 1: Setup (sort allocations and rebuild cache)
+    double setup_start = gc->debug_print_stats ? get_time_us() : 0;
+    
+    // Sort allocations for binary search
     qsort(gc->allocs, gc->alloc_count, sizeof(gc_entry), entry_compare);
+    
+    // Calculate desired cache size (minimum 16)
+    size_t desired_size = gc->alloc_count > 16 ? next_power_of_2(gc->alloc_count) : 16;
+    
+    // Reallocate cache if needed (too small or more than 4x too large)
+    if (gc->cache_size < desired_size || gc->cache_size > desired_size * 4) {
+        gc_entry **new_cache = (gc_entry**)realloc(gc->cache, desired_size * sizeof(gc_entry*));
+        if (!new_cache) { fprintf(stderr, "gc_collect: OOM (cache)\n"); exit(1); }
+        gc->cache = new_cache;
+        gc->cache_size = desired_size;
+        gc->cache_mask = desired_size - 1;
+    }
+    
+    // Clear and populate the direct mapped cache
+    memset(gc->cache, 0, gc->cache_size * sizeof(gc_entry*));
+    for (size_t i = 0; i < gc->alloc_count; i++) {
+        size_t index = dm_cache_idx(gc, gc->allocs[i].ptr);
+        gc->cache[index] = &gc->allocs[i];
+    }
+    
+    double setup_time = gc->debug_print_stats ? get_time_us() - setup_start : 0;
     
     // clear marks
     for (size_t i = 0; i < gc->alloc_count; i++)
         gc->allocs[i].marked = 0;
 
+    // Phase 2: Mark reachable objects
+    double mark_start = gc->debug_print_stats ? get_time_us() : 0;
     
     // Save registers using setjmp and scan them
     jmp_buf regs;
@@ -163,9 +252,13 @@ void gc_collect(gc_state *gc) {
         // Scan the range manually for the case it is not a gc heap object.
         scan_range_for_ptrs(gc, r->ptr, (char*)r->ptr + r->size);
     }
+    
+    double mark_time = gc->debug_print_stats ? get_time_us() - mark_start : 0;
 
     
-    // sweep: compact array by removing unmarked entries
+    // Phase 3: Sweep unreachable objects
+    double sweep_start = gc->debug_print_stats ? get_time_us() : 0;
+    
     size_t write_pos = 0;
     size_t new_bytes = 0;
     
@@ -183,22 +276,47 @@ void gc_collect(gc_state *gc) {
             free(e->ptr);
         }
     }
-    
+
     // Update counts
-    size_t old_count = gc->alloc_count;
-    size_t old_bytes = gc->allocated_bytes;
     gc->alloc_count = write_pos;
     gc->allocated_bytes = new_bytes;
+    
+    // Shrink the allocations array if it's more than 4x too large
+    if (gc->alloc_capacity > gc->alloc_count * 4 && gc->alloc_capacity > GC_INITIAL_ALLOC_SIZE) {
+        size_t new_capacity = gc->alloc_count * 2;
+        if (new_capacity < GC_INITIAL_ALLOC_SIZE) {
+            new_capacity = GC_INITIAL_ALLOC_SIZE;
+        }
+        gc_entry *new_allocs = (gc_entry*)realloc(gc->allocs, new_capacity * sizeof(gc_entry));
+        if(!new_allocs) { fprintf(stderr, "gc_collect: OOM (shrink allocs)\n"); exit(1); }
+        gc->allocs = new_allocs;
+        gc->alloc_capacity = new_capacity;
+    }
 
+    double sweep_time = gc->debug_print_stats ? get_time_us() - sweep_start : 0;
+    
+    if (gc->debug_print_stats) {
+        double total_time = get_time_us() - start_time;
+        size_t freed_count = old_count - gc->alloc_count;
+        size_t freed_bytes = old_bytes - gc->allocated_bytes;
+        
+        fprintf(stderr, "GC: %zu->%zu allocs, %zu->%zu bytes (freed %zu/%zu), scanned %zu bytes, %.0fus (setup:%.1f%% mark:%.1f%% sweep:%.1f%%)\n",
+                old_count, gc->alloc_count,
+                old_bytes, gc->allocated_bytes,
+                freed_count, freed_bytes,
+                gc->bytes_scanned,
+                total_time,
+                (setup_time/total_time)*100,
+                (mark_time/total_time)*100,
+                (sweep_time/total_time)*100);
+    }
 
     if (gc->allocated_bytes > (gc->threshold * 3) / 4) gc->threshold *= 2;
 }
 
 void* gc_malloc(gc_state *gc, size_t size) {
     // Debug stress mode: force collection before every allocation
-    if (gc->debug_stress) {
-        gc_collect(gc);
-    } else if (gc->allocated_bytes + size > gc->threshold) {
+    if (gc->debug_stress || (gc->allocated_bytes + size > gc->threshold)) {
         gc_collect(gc);
     }
 

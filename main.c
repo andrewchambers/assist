@@ -319,6 +319,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "GC: Debug stress testing enabled (collecting on every allocation)\n");
     }
     
+    // Check for debug stats printing environment variable
+    const char *stats_env = getenv("MINICODER_DEBUG_PRINT_STATS");
+    if (stats_env && strcmp(stats_env, "1") == 0) {
+        gc.debug_print_stats = 1;
+        fprintf(stderr, "GC: Debug stats printing enabled\n");
+    }
+    
     // Initialize cJSON to use gc memory management
     cJSON_Hooks hooks;
     hooks.malloc_fn = cjson_malloc_wrapper;

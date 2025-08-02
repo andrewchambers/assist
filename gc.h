@@ -23,8 +23,7 @@
  * - May not work with some optimizations that hide pointers
  */
 
-// Initial allocation array size
-#define GC_INITIAL_ALLOC_SIZE 256
+
 
 // GC allocation entry
 typedef struct gc_entry {
@@ -38,9 +37,6 @@ typedef struct gc_root {
     void *ptr;              // Root pointer
     size_t size;            // Size of root area
 } gc_root;
-
-// Initial root array size
-#define GC_INITIAL_ROOTS 16
 
 // Platform-specific macro to get stack pointer
 // Usage: void *sp; GC_GET_STACK_POINTER(&sp);
@@ -73,6 +69,11 @@ typedef struct gc_state {
     size_t threshold;           // Collection threshold
     void *stack_bottom;         // Bottom of stack for scanning
     
+    // Direct mapped cache for fast lookups
+    gc_entry **cache;           // Direct mapped cache (pointers to entries)
+    size_t cache_size;          // Size of cache (power of 2)
+    size_t cache_mask;          // Mask for cache indexing (size - 1)
+    
     // Root management
     gc_root *roots;             // Array of registered roots
     size_t root_count;          // Number of registered roots
@@ -80,6 +81,10 @@ typedef struct gc_state {
     
     // Debug flags
     int debug_stress;           // Force GC on every allocation
+    int debug_print_stats;      // Print statistics during collection
+    
+    // Statistics for current collection
+    size_t bytes_scanned;       // Bytes scanned during current collection
 } gc_state;
 
 // Initialize GC with stack bottom
