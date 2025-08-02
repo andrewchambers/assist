@@ -28,32 +28,39 @@ The assistant can read files, execute shell commands, track changes, and perform
 *--files* _FILES_
 	Files or glob patterns to include initially (space-separated).
 
+*--extra-instructions* _TEXT_
+	Provide custom instructions to guide the assistant's behavior. Can be inline text or @filename to load from a file. Takes precedence over MINICODER_EXTRA_INSTRUCTIONS environment variable.
+
 *--help*, *-h*
 	Display help message and exit.
 
 # ENVIRONMENT
 
-*OPENROUTER_API_KEY*
-	API key for OpenRouter service. When set, enables a selection of the latest models from various providers.
-
-*OPENAI_API_KEY*
-	API key for OpenAI services. When set without OPENROUTER_API_KEY, enables a selection of the latest OpenAI models.
+*MINICODER_MODEL_CONFIG*
+	Path to a custom model configuration file. If not set, built-in defaults are used based on available API keys.
 
 *MINICODER_MODEL*
 	Specify the default model to use. This overrides the default model selection but can still be overridden by the --model command line option.
 
+*MINICODER_EXTRA_INSTRUCTIONS*
+	Custom instructions to guide the assistant's behavior. Can be inline text or @filename to load from a file. The --extra-instructions command line option takes precedence over this variable.
 
-# FILES
+*OPENROUTER_API_KEY*
+	API key for OpenRouter service. When set, enables models from multiple providers including OpenAI, Google, X.AI, DeepSeek, and Anthropic.
 
-*~/.config/minicoder/models.json*
-	User configuration file for AI models (optional).
+*OPENAI_API_KEY*
+	API key for OpenAI services. When set without OPENROUTER_API_KEY, enables OpenAI models directly.
 
-*/etc/minicoder/models.json*
-	System-wide configuration file for AI models (optional).
+*GEMINI_API_KEY*
+	API key for Google Gemini. When set without OPENROUTER_API_KEY, enables Google Gemini models directly.
+
+*XAI_API_KEY*
+	API key for X.AI. When set without OPENROUTER_API_KEY, enables Grok models directly.
+
 
 # CONFIGURATION
 
-*minicoder* can be configured to use different AI models and endpoints through configuration files. If no configuration file exists, the tool will use default models based on available API keys (OPENROUTER_API_KEY or OPENAI_API_KEY).
+*minicoder* can be configured to use different AI models and endpoints through a configuration file specified by the MINICODER_MODEL_CONFIG environment variable. If no configuration file is specified, the tool will use default models based on available API keys.
 
 For detailed information about configuring models, including file format, available parameters, and examples, see *minicoder-model-config*(5).
 
@@ -78,6 +85,13 @@ Include specific files for the task:
 
 Use a specific model with reasoning capabilities:
 	$ minicoder --model o3 "Optimize the database queries"
+
+Load custom instructions from a file:
+	$ minicoder --extra-instructions "@project-guidelines.md" "Add a new feature"
+
+Set persistent instructions via environment:
+	$ export MINICODER_EXTRA_INSTRUCTIONS="Always follow ESLint rules and write tests"
+	$ minicoder "Fix the validation bug"
 
 # SEE ALSO
 

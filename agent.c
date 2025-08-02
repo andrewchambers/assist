@@ -320,6 +320,20 @@ static char* build_prompt(const PromptBuildArgs *args) {
     string_builder_append_str(&sb, "- Verify outputs before proceeding (verify success in the next iteration)\n");
     string_builder_append_str(&sb, "- Track your own progress via notes (you can only see the output of the last iteration)\n\n");
     
+    // Add custom instructions if provided
+    if (args->extra_instructions && strlen(args->extra_instructions) > 0) {
+        string_builder_append_str(&sb, "# CUSTOM INSTRUCTIONS\n\n");
+        string_builder_append_str(&sb, args->extra_instructions);
+        
+        // Ensure there's at least one newline after instructions
+        size_t len = strlen(args->extra_instructions);
+        if (len > 0 && args->extra_instructions[len - 1] != '\n') {
+            string_builder_append_str(&sb, "\n");
+        }
+        // Always add an extra newline for spacing
+        string_builder_append_str(&sb, "\n");
+    }
+    
     string_builder_append_str(&sb, "--- CURRENT STATE ---\n\n");
     
     string_builder_append_fmt(&sb, "User query/request:\n\n%s\n\n", args->user_request);

@@ -67,11 +67,12 @@ typedef struct {
 
 /**
  * Initialize model configuration from config file or use defaults.
+ * @param config_path Path to the model config file (can be NULL for defaults)
  * Returns pointer to model_config_t on success, NULL on failure.
  * On failure, *error is set to allocated error message (caller must free).
  * Caller is responsible for storing the returned config.
  */
-model_config_t *init_models(char **error);
+model_config_t *init_models(const char *config_path, char **error);
 
 /**
  * Get a model by name from the configuration.

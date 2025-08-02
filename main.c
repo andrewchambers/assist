@@ -49,28 +49,79 @@ static int cancellation_callback(void *user_data) {
 }
 
 
+// Load extra instructions from string value (from CLI or environment)
+// Supports both inline text and file paths (prefixed with @)
+// Returns NULL if not set, exits on error
+static char* load_extra_instructions_from_value(const char *value) {
+    if (!value || strlen(value) == 0) {
+        return NULL;
+    }
+    
+    // Check if it's a file reference (starts with @)
+    if (value[0] == '@') {
+        const char *file_path = value + 1; // Skip the @
+        char *error = NULL;
+        char *content = file_to_string(file_path, &error);
+        if (!content) {
+            die("Failed to load extra instructions from file '%s': %s", 
+                    file_path, error ? error : "Unknown error");
+        }
+        return content;
+    }
+    
+    // Otherwise, use the value directly as inline instructions
+    return gc_strdup(&gc, value);
+}
+
 static void print_usage(const char *prog_name, model_config_t *model_config) {
     fprintf(stderr, "Usage: %s [options] <request>\n", prog_name);
     fprintf(stderr, "\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  --debug                    Show debug output including prompts\n");
-    fprintf(stderr, "  --max-iterations NUM       Maximum number of iterations (default: 50)\n");
+    fprintf(stderr, "  --debug                     Show debug output including generated prompts\n");
+    fprintf(stderr, "  --max-iterations NUM        Maximum number of iterations (default: 50)\n");
     
-    // Show default model if available
-    if (model_config && model_config->count > 0) {
+    // Show model info
+    fprintf(stderr, "  --model MODEL               Model to use");
+    const char *env_model = getenv("MINICODER_MODEL");
+    if (env_model) {
+        fprintf(stderr, " (default from env: %s)\n", env_model);
+    } else if (model_config && model_config->count > 0) {
         model_t *default_model = get_default_model(model_config);
         if (default_model) {
-            fprintf(stderr, "  --model MODEL              Model to use (default: %s)\n", default_model->name);
+            fprintf(stderr, " (default: %s from config)\n", default_model->name);
         } else {
-            fprintf(stderr, "  --model MODEL              Model to use\n");
+            fprintf(stderr, "\n");
         }
     } else {
-        fprintf(stderr, "  --model MODEL              Model to use\n");
+        fprintf(stderr, "\n");
     }
     
-    fprintf(stderr, "  --files FILES              Files or globs to include initially (space-separated)\n");
-    fprintf(stderr, "  --help                     Show this help message\n");
-    fprintf(stderr, "  --version                  Show version information\n");
+    fprintf(stderr, "  --files FILES               Files or globs to include initially (space-separated)\n");
+    
+    // Show extra instructions info
+    fprintf(stderr, "  --extra-instructions TEXT   Custom instructions or @file");
+    const char *env_extra = getenv("MINICODER_EXTRA_INSTRUCTIONS");
+    if (env_extra) {
+        if (env_extra[0] == '@') {
+            fprintf(stderr, " (default from env: %s)\n", env_extra);
+        } else {
+            fprintf(stderr, " (default from env: ...)\n");
+        }
+    } else {
+        fprintf(stderr, "\n");
+    }
+    
+    fprintf(stderr, "  --help                      Show this help message\n");
+    fprintf(stderr, "  --version                   Show version information\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Environment variables:\n");
+    fprintf(stderr, "  MINICODER_MODEL               Default model to use\n");
+    fprintf(stderr, "  MINICODER_MODEL_CONFIG        Path to custom model configuration file\n");
+    fprintf(stderr, "  MINICODER_EXTRA_INSTRUCTIONS  Default custom instructions (text or @/path/to/file)\n");
+    fprintf(stderr, "  OPENROUTER_API_KEY            API key for OpenRouter models\n");
+    fprintf(stderr, "  OPENAI_API_KEY                API key for OpenAI models\n");
+    fprintf(stderr, "  GEMINI_API_KEY                API key for Google gemini models\n");
+    fprintf(stderr, "  XAI_API_KEY                   API key for X.AI models\n");
     fprintf(stderr, "\n");
 }
 
@@ -78,7 +129,8 @@ static int assist_main(int argc, char *argv[]) {
 
     // Initialize model configuration early to show in usage
     char *error = NULL;
-    model_config_t *model_config = init_models(&error);
+    const char *config_path = getenv("MINICODER_MODEL_CONFIG");
+    model_config_t *model_config = init_models(config_path, &error);
     if (!model_config) {
         fprintf(stderr, "Error initializing models: %s\n", error ? error : "Unknown error");
         return 1;
@@ -89,6 +141,7 @@ static int assist_main(int argc, char *argv[]) {
     int max_iterations = 50;
     char *model = NULL;
     char *files_arg = NULL;  // Store the --files argument
+    char *extra_instructions_arg = NULL;  // Store the --extra-instructions argument
     
     // Parse command line arguments
     int i = 1;
@@ -120,6 +173,13 @@ static int assist_main(int argc, char *argv[]) {
                 return 1;
             }
             files_arg = argv[i + 1];
+            i += 2;
+        } else if (strcmp(argv[i], "--extra-instructions") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: --extra-instructions requires an argument\n");
+                return 1;
+            }
+            extra_instructions_arg = argv[i + 1];
             i += 2;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0], model_config);
@@ -206,6 +266,17 @@ static int assist_main(int argc, char *argv[]) {
         fprintf(stderr, "Warning: Failed to set up SIGTERM handler\n");
     }
     
+    // Load extra instructions - CLI flag takes precedence over environment variable
+    char *extra_instructions = NULL;
+    if (extra_instructions_arg) {
+        extra_instructions = load_extra_instructions_from_value(extra_instructions_arg);
+    } else {
+        const char *env_value = getenv("MINICODER_EXTRA_INSTRUCTIONS");
+        if (env_value) {
+            extra_instructions = load_extra_instructions_from_value(env_value);
+        }
+    }
+    
     // Create agent arguments
     AgentArgs args = {
         .user_request = user_request,
@@ -218,7 +289,7 @@ static int assist_main(int argc, char *argv[]) {
         .working_dir = NULL,  // Use current directory
         .model_config = model_config,
         .should_cancel = cancellation_callback,
-        .extra_instructions = NULL  // No extra instructions from CLI for now
+        .extra_instructions = extra_instructions
     };
     
     // Run the agent

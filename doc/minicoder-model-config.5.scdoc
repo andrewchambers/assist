@@ -7,20 +7,12 @@ minicoder-model-config - AI model configuration file format for minicoder(1)
 # SYNOPSIS
 
 $MINICODER_MODEL_CONFIG
-$XDG_CONFIG_HOME/minicoder/models.json
-~/.config/minicoder/models.json
-/etc/minicoder/models.json
 
 # DESCRIPTION
 
 The *minicoder* command uses JSON configuration files to define available AI models and their parameters. It supports multiple model providers through OpenAI-compatible APIs, including OpenAI, Anthropic (via proxy), Google, local models via Ollama, and many others through services like OpenRouter.
 
-Configuration files are searched in the following order:
-
-1. Environment variable: *$MINICODER_MODEL_CONFIG* (if set)
-2. User configuration: *$XDG_CONFIG_HOME/minicoder/models.json* (or *~/.config/minicoder/models.json* if XDG_CONFIG_HOME is not set)
-3. System configuration: */etc/minicoder/models.json*
-4. Built-in defaults (if no configuration files exist)
+If the *$MINICODER_MODEL_CONFIG* environment variable is set, it specifies the path to a custom model configuration file. Otherwise, built-in defaults are used based on available API keys.
 
 The first model defined in the configuration file becomes the default model when no *--model* option is specified.
 
@@ -164,29 +156,32 @@ Configuration for Ollama (local model server):
 
 If no configuration file is found, *minicoder* uses built-in models based on available API keys:
 
-- With *OPENROUTER_API_KEY*: A selection of the latest models from OpenAI, Google, X.AI, and other providers
-- With *OPENAI_API_KEY* (when OPENROUTER_API_KEY is not set): A selection of the latest OpenAI models
+- With *OPENROUTER_API_KEY*: Provides access to o3, o3-pro, o4-mini, gemini, grok-4, deepseek-r1, glm-4.5, sonnet, and opus models
+- With *OPENAI_API_KEY*: Provides access to o3 and o4-mini models directly from OpenAI
+- With *GEMINI_API_KEY*: Provides access to gemini model directly from Google
+- With *XAI_API_KEY*: Provides access to grok-4 model directly from X.AI
+- Local models: local/qwen3-30b (via Ollama on localhost:11434)
 
-The first model in the list becomes the default when no --model option is specified.
+When multiple API keys are set, OpenRouter is preferred as it provides unified access to multiple providers. The first model in the list becomes the default when no --model option is specified.
 
 # ENVIRONMENT VARIABLES
 
 *MINICODER_MODEL_CONFIG*
-	Path to a custom model configuration file. Takes precedence over all other configuration locations.
-
-*XDG_CONFIG_HOME*
-	Base directory for user-specific configuration files. If set, minicoder looks for *$XDG_CONFIG_HOME/minicoder/models.json*.
+	Path to a custom model configuration file. If not set, built-in defaults are used.
 
 API keys can be specified via environment variables using the *api_key_env* field. Common variables:
 
 *OPENAI_API_KEY*
-	For OpenAI API access
+	For OpenAI API access (used for OpenAI models like o3, o4-mini)
 
 *OPENROUTER_API_KEY*
-	For OpenRouter service access
+	For OpenRouter service access (provides access to models from multiple providers)
 
-*ANTHROPIC_API_KEY*
-	For Anthropic API access
+*GEMINI_API_KEY*
+	For Google Gemini API access
+
+*XAI_API_KEY*
+	For X.AI API access (used for Grok models)
 
 # SEE ALSO
 
