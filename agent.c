@@ -23,16 +23,23 @@ static char* extract_exec_script(const char *text) {
     const char *p = text;
     
     while (*p) {
-        // Look for "exec"
+        // Look for "exec" at the beginning of a line
         const char *exec_pos = strstr(p, "exec");
         if (!exec_pos) {
             break;
         }
         
+        // Check if "exec" is at the beginning of a line
+        bool at_line_start = (exec_pos == text) || (exec_pos > text && *(exec_pos - 1) == '\n');
+        if (!at_line_start) {
+            p = exec_pos + 1;
+            continue;
+        }
+        
         // Move past "exec"
         const char *after_exec = exec_pos + 4;
         
-        // Check for newline
+        // Check for newline immediately after "exec"
         if (*after_exec != '\n') {
             p = exec_pos + 1;
             continue;
@@ -173,10 +180,22 @@ static char* truncate_history_if_needed(const char *history, size_t max_bytes) {
     const char *start = history + (history_len - max_bytes);
     
     // Find a good starting point (beginning of a line)
-    while (start < history + history_len && *start != '\n') {
+    // But don't search too far - limit to 1KB to avoid discarding everything
+    const char *search_limit = start + 1024;
+    if (search_limit > history + history_len) {
+        search_limit = history + history_len;
+    }
+    
+    while (start < search_limit && *start != '\n') {
         start++;
     }
-    if (*start == '\n') start++;
+    
+    // If we didn't find a newline within the search limit, just use the original start
+    if (start >= search_limit) {
+        start = history + (history_len - max_bytes);
+    } else if (*start == '\n') {
+        start++;
+    }
     
     string_builder_t sb;
     string_builder_init(&sb, &gc, max_bytes + 100);
@@ -491,7 +510,8 @@ AgentResult run_agent(AgentArgs *args) {
             if (focused_files_actual_size > focused_files_budget) {
                 focused_files = truncate_text(focused_files_full, focused_files_budget,
                     "[NOTE: Focused files were truncated to fit context limits. Consider focusing on fewer or smaller files.]");
-                focused_files_actual_size = focused_files_budget;
+                // Update actual size to reflect the truncated content + note
+                focused_files_actual_size = strlen(focused_files);
             } else {
                 focused_files = focused_files_full;
             }

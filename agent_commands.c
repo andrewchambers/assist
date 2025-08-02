@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
+#include <errno.h>
 #include <cJSON.h>
 
 extern gc_state gc;
@@ -133,12 +134,12 @@ int agent_command_main(const char *cmd, int argc, char *argv[]) {
             // Get absolute path
             char *abs_path = realpath(argv[i], NULL);
             if (!abs_path) {
-                abs_path = gc_strdup(&gc, argv[i]);
-            } else {
-                char *gc_abs = gc_strdup(&gc, abs_path);
-                free(abs_path);
-                abs_path = gc_abs;
+                fprintf(stderr, "Error: Cannot resolve path '%s': %s\n", argv[i], strerror(errno));
+                return 1;
             }
+            char *gc_abs = gc_strdup(&gc, abs_path);
+            free(abs_path);
+            abs_path = gc_abs;
             
             cJSON_AddItemToArray(focused, cJSON_CreateString(abs_path));
             printf("Focused on: %s\n", abs_path);

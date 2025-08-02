@@ -196,18 +196,24 @@ int expand_globs(const char *words, expand_globs_t *result) {
             pos++;
             word_start = pos;
             
-            // Find matching quote
+            // Build unescaped word
+            string_builder_t word_sb;
+            string_builder_init(&word_sb, &gc, 64);
+            
+            // Find matching quote and unescape
             while (pos < len && buffer[pos] && buffer[pos] != quote_char) {
                 if (buffer[pos] == '\\' && pos + 1 < len && buffer[pos + 1]) {
-                    // Skip escaped character
-                    pos += 2;
+                    // Add the escaped character (skip the backslash)
+                    pos++;
+                    string_builder_append(&word_sb, &buffer[pos], 1);
+                    pos++;
                 } else {
+                    string_builder_append(&word_sb, &buffer[pos], 1);
                     pos++;
                 }
             }
             
             if (pos < len && buffer[pos] == quote_char) {
-                buffer[pos] = '\0';
                 pos++;
             }
             
@@ -218,23 +224,32 @@ int expand_globs(const char *words, expand_globs_t *result) {
                 memcpy(new_wordv, wordv, wordc * sizeof(char*));
                 wordv = new_wordv;
             }
-            wordv[wordc++] = gc_strdup(&gc, &buffer[word_start]);
+            wordv[wordc++] = string_builder_finalize(&word_sb);
         } else {
+            // Build unquoted word, handling escapes
+            string_builder_t word_sb;
+            string_builder_init(&word_sb, &gc, 64);
+            
             // Find end of unquoted word
             while (pos < len && buffer[pos] && buffer[pos] != ' ' && buffer[pos] != '\t' && buffer[pos] != '\n') {
-                pos++;
+                if (buffer[pos] == '\\' && pos + 1 < len && buffer[pos + 1]) {
+                    // Add the escaped character (skip the backslash)
+                    pos++;
+                    string_builder_append(&word_sb, &buffer[pos], 1);
+                    pos++;
+                } else {
+                    string_builder_append(&word_sb, &buffer[pos], 1);
+                    pos++;
+                }
             }
             
-            // Temporarily null-terminate the word
-            char saved = (pos < len) ? buffer[pos] : '\0';
-            if (pos < len) {
-                buffer[pos] = '\0';
-            }
+            // Get the unescaped word
+            char *unescaped_word = string_builder_finalize(&word_sb);
             
             // Always use glob to handle tilde expansion and patterns
             // GLOB_NOCHECK ensures non-matching patterns are returned as-is
             glob_t glob_result;
-            int glob_ret = glob(&buffer[word_start], GLOB_NOCHECK | GLOB_TILDE, NULL, &glob_result);
+            int glob_ret = glob(unescaped_word, GLOB_NOCHECK | GLOB_TILDE, NULL, &glob_result);
             
             if (glob_ret == 0) {
                 // Add all expanded paths
@@ -256,12 +271,7 @@ int expand_globs(const char *words, expand_globs_t *result) {
                 memcpy(new_wordv, wordv, wordc * sizeof(char*));
                 wordv = new_wordv;
                 }
-                wordv[wordc++] = gc_strdup(&gc, &buffer[word_start]);
-            }
-            
-            // Restore the character
-            if (pos < len) {
-                buffer[pos] = saved;
+                wordv[wordc++] = unescaped_word;
             }
         }
     }
