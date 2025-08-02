@@ -57,7 +57,9 @@ void string_builder_append(string_builder_t *sb, const char *data, size_t len) {
         while (new_capacity < new_size + 1) {
             new_capacity *= 2;
         }
-        sb->data = gc_realloc(sb->gc, sb->data, new_capacity);
+        char *new_data = gc_malloc(sb->gc, new_capacity);
+        memcpy(new_data, sb->data, sb->size + 1);  // +1 for null terminator
+        sb->data = new_data;
         sb->capacity = new_capacity;
     }
     
@@ -91,7 +93,9 @@ void string_builder_append_fmt(string_builder_t *sb, const char *fmt, ...) {
         while (new_capacity < new_size + 1) {
             new_capacity *= 2;
         }
-        sb->data = gc_realloc(sb->gc, sb->data, new_capacity);
+        char *new_data = gc_malloc(sb->gc, new_capacity);
+        memcpy(new_data, sb->data, sb->size + 1);  // +1 for null terminator
+        sb->data = new_data;
         sb->capacity = new_capacity;
     }
     

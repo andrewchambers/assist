@@ -214,7 +214,9 @@ int expand_globs(const char *words, expand_globs_t *result) {
             // Add word (no glob expansion for quoted strings)
             if (wordc >= capacity) {
                 capacity *= 2;
-                wordv = gc_realloc(&gc, wordv, capacity * sizeof(char*));
+                char **new_wordv = gc_malloc(&gc, capacity * sizeof(char*));
+                memcpy(new_wordv, wordv, wordc * sizeof(char*));
+                wordv = new_wordv;
             }
             wordv[wordc++] = gc_strdup(&gc, &buffer[word_start]);
         } else {
@@ -239,7 +241,9 @@ int expand_globs(const char *words, expand_globs_t *result) {
                 for (size_t i = 0; i < glob_result.gl_pathc; i++) {
                     if (wordc >= capacity) {
                         capacity *= 2;
-                        wordv = gc_realloc(&gc, wordv, capacity * sizeof(char*));
+                        char **new_wordv = gc_malloc(&gc, capacity * sizeof(char*));
+                memcpy(new_wordv, wordv, wordc * sizeof(char*));
+                wordv = new_wordv;
                     }
                     wordv[wordc++] = gc_strdup(&gc, glob_result.gl_pathv[i]);
                 }
@@ -248,7 +252,9 @@ int expand_globs(const char *words, expand_globs_t *result) {
                 // On error, just add the word as-is
                 if (wordc >= capacity) {
                     capacity *= 2;
-                    wordv = gc_realloc(&gc, wordv, capacity * sizeof(char*));
+                    char **new_wordv = gc_malloc(&gc, capacity * sizeof(char*));
+                memcpy(new_wordv, wordv, wordc * sizeof(char*));
+                wordv = new_wordv;
                 }
                 wordv[wordc++] = gc_strdup(&gc, &buffer[word_start]);
             }
@@ -263,7 +269,9 @@ int expand_globs(const char *words, expand_globs_t *result) {
     // Add terminating NULL
     if (wordc >= capacity) {
         capacity++;
-        wordv = gc_realloc(&gc, wordv, capacity * sizeof(char*));
+        char **new_wordv = gc_malloc(&gc, capacity * sizeof(char*));
+        memcpy(new_wordv, wordv, wordc * sizeof(char*));
+        wordv = new_wordv;
     }
     wordv[wordc] = NULL;
     

@@ -62,12 +62,6 @@ typedef struct gc_root {
 #elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)
     #define GC_GET_STACK_POINTER(ptr) \
         __asm__ volatile ("mr %0, 1" : "=r"(*(ptr)))
-#else
-    // Fallback to portable method
-    #define GC_GET_STACK_POINTER(ptr) do { \
-        volatile int x; \
-        *(ptr) = (void*)&x; \
-    } while(0)
 #endif
 
 // GC state
@@ -96,9 +90,6 @@ void gc_cleanup(gc_state *gc);
 
 // Allocate memory with GC tracking
 void* gc_malloc(gc_state *gc, size_t size);
-
-// Reallocate memory with GC tracking
-void* gc_realloc(gc_state *gc, void *ptr, size_t size);
 
 // Force a garbage collection
 void gc_collect(gc_state *gc);

@@ -449,12 +449,15 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
         }
     }
     
-    char *ptr = gc_realloc(&gc, mem->data, mem->size + realsize + 1);
-    if (!ptr) {
+    char *new_data = gc_malloc(&gc, mem->size + realsize + 1);
+    if (!new_data) {
         return 0;  // Out of memory
     }
     
-    mem->data = ptr;
+    if (mem->size > 0) {
+        memcpy(new_data, mem->data, mem->size);
+    }
+    mem->data = new_data;
     memcpy(&(mem->data[mem->size]), contents, realsize);
     mem->size += realsize;
     mem->data[mem->size] = 0;
@@ -761,7 +764,7 @@ static char *openai_completion_non_streaming(model_t *model, const char *prompt,
     
     // Prepare response buffer
     struct curl_response response = {0};
-    response.data = gc_malloc(&gc, 1);  // Will be grown as needed by gc_realloc
+    response.data = gc_malloc(&gc, 1);  // Will be grown as needed
     response.size = 0;
     response.options = options;
     response.error = error;

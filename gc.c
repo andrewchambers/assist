@@ -214,35 +214,6 @@ void* gc_malloc(gc_state *gc, size_t size) {
     return p;
 }
 
-void* gc_realloc(gc_state *gc, void *ptr, size_t size) {
-    if (!ptr) {
-        // If ptr is NULL, behave like malloc
-        return gc_malloc(gc, size);
-    }
-    
-    if (size == 0) {
-        // If size is 0, just return NULL (let GC handle the cleanup)
-        return NULL;
-    }
-
-    // Simple approach: allocate new memory and copy, this is simple,
-    // and improves memory safety (avoids use after realloc), but
-    // still leaves us room to add it back in different configurations.
-    //
-    // If we wanted to implement realloc, then we should consider
-    // storing the allocations in a hash table.
-    
-    // Allocate new memory
-    void *new_ptr = gc_malloc(gc, size);
-    
-    // Copy data - since we don't track the old size efficiently,
-    // we'll copy up to the new size and let the caller handle any truncation
-    memcpy(new_ptr, ptr, size);
-    
-    // The old ptr will be collected by GC eventually
-    return new_ptr;
-}
-
 size_t gc_allocated_bytes(gc_state *gc) { return gc->allocated_bytes; }
 
 void gc_add_root(gc_state *gc, void *ptr, size_t size) {
