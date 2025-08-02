@@ -14,7 +14,7 @@
  * Features:
  * - Automatic memory management via mark-and-sweep collection
  * - Conservative stack scanning to find roots
-*  - Handles interior pointers.
+*  - Handles interior pointers
  * - Support for explicit root registration
  * 
  * Limitations:
@@ -26,10 +26,10 @@
 
 
 // GC allocation entry
+// The mark bit is stored in the low bit of ptr (assumes at least 2-byte alignment)
 typedef struct gc_entry {
-    void *ptr;              // User pointer (key)
+    uintptr_t ptr_and_mark; // User pointer with mark bit in LSB
     size_t size;            // Allocation size
-    uint8_t marked;         // Mark bit
 } gc_entry;
 
 // GC root entry

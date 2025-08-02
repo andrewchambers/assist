@@ -17,6 +17,30 @@
 
 // ---- Array-based allocation tracking ---------------------------------------
 
+// Mark bit manipulation helpers
+#define MARK_BIT 1
+#define PTR_MASK (~(uintptr_t)1)
+
+static inline void* entry_ptr(const gc_entry *e) {
+    return (void*)(e->ptr_and_mark & PTR_MASK);
+}
+
+static inline int entry_marked(const gc_entry *e) {
+    return e->ptr_and_mark & MARK_BIT;
+}
+
+static inline void entry_set_marked(gc_entry *e, int marked) {
+    if (marked) {
+        e->ptr_and_mark |= MARK_BIT;
+    } else {
+        e->ptr_and_mark &= PTR_MASK;
+    }
+}
+
+static inline void entry_set_ptr(gc_entry *e, void *ptr) {
+    e->ptr_and_mark = ((uintptr_t)ptr & PTR_MASK) | (e->ptr_and_mark & MARK_BIT);
+}
+
 // Compute direct mapped cache index for a pointer
 static size_t dm_cache_idx(gc_state *gc, void *ptr) {
     // Mix the bits of the pointer for better distribution
@@ -45,8 +69,10 @@ static size_t next_power_of_2(size_t n) {
 static int entry_compare(const void *a, const void *b) {
     const gc_entry *ea = (const gc_entry *)a;
     const gc_entry *eb = (const gc_entry *)b;
-    if (ea->ptr < eb->ptr) return -1;
-    if (ea->ptr > eb->ptr) return 1;
+    void *pa = entry_ptr(ea);
+    void *pb = entry_ptr(eb);
+    if (pa < pb) return -1;
+    if (pa > pb) return 1;
     return 0;
 }
 
@@ -55,7 +81,7 @@ static int find_entry_compare(const void *key, const void *entry) {
     void *search_ptr = *(void * const *)key;
     const gc_entry *e = (const gc_entry *)entry;
     
-    void *alloc_start = e->ptr;
+    void *alloc_start = entry_ptr(e);
     void *alloc_end = (char*)alloc_start + e->size;
     
     if (search_ptr < alloc_start) {
@@ -72,8 +98,8 @@ static gc_entry* find_entry(gc_state *gc, void *ptr) {
     if (gc->alloc_count == 0) return NULL;
     
     // Fast path: check if pointer is within the range of all allocations
-    void *min_ptr = gc->allocs[0].ptr;
-    void *max_ptr = (char*)gc->allocs[gc->alloc_count - 1].ptr + gc->allocs[gc->alloc_count - 1].size;
+    void *min_ptr = entry_ptr(&gc->allocs[0]);
+    void *max_ptr = (char*)entry_ptr(&gc->allocs[gc->alloc_count - 1]) + gc->allocs[gc->alloc_count - 1].size;
     if (ptr < min_ptr || ptr >= max_ptr) {
         return NULL;  // Pointer is outside heap range
     }
@@ -81,7 +107,7 @@ static gc_entry* find_entry(gc_state *gc, void *ptr) {
     // Next try direct mapped cache for exact pointer match
     size_t index = dm_cache_idx(gc, ptr);
     gc_entry *cached = gc->cache[index];
-    if (cached && cached->ptr == ptr) {
+    if (cached && entry_ptr(cached) == ptr) {
         return cached;
     }
     
@@ -107,7 +133,8 @@ static void add_entry(gc_state *gc, void *ptr, size_t size) {
     if (gc->alloc_count >= gc->alloc_capacity) {
         grow_alloc_array(gc);
     }
-    gc->allocs[gc->alloc_count] = (gc_entry){ .ptr = ptr, .size = size, .marked = 0 };
+    gc->allocs[gc->alloc_count].ptr_and_mark = (uintptr_t)ptr; // unmarked by default
+    gc->allocs[gc->alloc_count].size = size;
     gc->allocated_bytes += size;
     gc->alloc_count++;
 }
@@ -130,9 +157,10 @@ static bool mark_from_ptr(gc_state *gc, void *ptr) {
     // Array must be sorted for binary search to work
     // During gc_collect, array is already sorted
     gc_entry *e = find_entry(gc, ptr);
-    if (!e || e->marked) return e != NULL;
-    e->marked = 1;
-    scan_range_for_ptrs(gc, e->ptr, (char*)e->ptr + e->size);
+    if (!e || entry_marked(e)) return e != NULL;
+    entry_set_marked(e, 1);
+    void *eptr = entry_ptr(e);
+    scan_range_for_ptrs(gc, eptr, (char*)eptr + e->size);
     return true;
 }
 
@@ -174,7 +202,7 @@ void gc_init(gc_state *gc, void *stack_bottom) {
 
 void gc_cleanup(gc_state *gc) {
     for (size_t i = 0; i < gc->alloc_count; i++)
-        free(gc->allocs[i].ptr);
+        free(entry_ptr(&gc->allocs[i]));
     free(gc->allocs); gc->allocs = NULL; gc->alloc_capacity = 0;
     gc->alloc_count = 0; gc->allocated_bytes = 0;
     free(gc->cache); gc->cache = NULL;
@@ -222,7 +250,8 @@ void gc_collect(gc_state *gc) {
     // Clear and populate the direct mapped cache
     memset(gc->cache, 0, gc->cache_size * sizeof(gc_entry*));
     for (size_t i = 0; i < gc->alloc_count; i++) {
-        size_t index = dm_cache_idx(gc, gc->allocs[i].ptr);
+        void *ptr = entry_ptr(&gc->allocs[i]);
+        size_t index = dm_cache_idx(gc, ptr);
         gc->cache[index] = &gc->allocs[i];
     }
     
@@ -230,7 +259,7 @@ void gc_collect(gc_state *gc) {
     
     // clear marks
     for (size_t i = 0; i < gc->alloc_count; i++)
-        gc->allocs[i].marked = 0;
+        entry_set_marked(&gc->allocs[i], 0);
 
     // Phase 2: Mark reachable objects
     double mark_start = gc->debug_print_stats ? get_time_us() : 0;
@@ -264,7 +293,7 @@ void gc_collect(gc_state *gc) {
     
     for (size_t read_pos = 0; read_pos < gc->alloc_count; read_pos++) {
         gc_entry *e = &gc->allocs[read_pos];
-        if (e->marked) {
+        if (entry_marked(e)) {
             // Keep marked entry
             if (write_pos != read_pos) {
                 gc->allocs[write_pos] = *e;
@@ -273,7 +302,7 @@ void gc_collect(gc_state *gc) {
             new_bytes += e->size;
         } else {
             // Free unmarked entry
-            free(e->ptr);
+            free(entry_ptr(e));
         }
     }
 
